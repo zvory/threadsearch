@@ -564,18 +564,24 @@ APP_HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#101312">
   <title>Thread Search</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f7f8f5;
-      --panel: #ffffff;
-      --ink: #1d2528;
-      --muted: #667074;
-      --line: #cfd8d1;
-      --accent: #0f766e;
-      --accent-strong: #134e4a;
-      --mark: #ffe08a;
+      color-scheme: dark;
+      --bg: #101312;
+      --panel: #1a201d;
+      --panel-hover: #24332d;
+      --ink: #e6ece8;
+      --muted: #a0ada7;
+      --line: #34423a;
+      --accent: #2dd4bf;
+      --accent-strong: #8ee7dc;
+      --accent-ink: #041d1a;
+      --focus-ring: rgba(45, 212, 191, 0.24);
+      --shadow: rgba(0, 0, 0, 0.42);
+      --mark: #7c5c15;
+      --empty-bg: rgba(255, 255, 255, 0.04);
     }
     * { box-sizing: border-box; }
     body {
@@ -646,7 +652,7 @@ APP_HTML = """<!doctype html>
     }
     .thread-combobox:focus-within {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.14);
+      box-shadow: 0 0 0 2px var(--focus-ring);
     }
     .thread-combobox input {
       height: 40px;
@@ -670,7 +676,7 @@ APP_HTML = """<!doctype html>
       color: var(--accent-strong);
     }
     .thread-combobox button:hover {
-      background: #edf7f4;
+      background: var(--panel-hover);
     }
     .thread-picker-arrow {
       width: 9px;
@@ -691,7 +697,7 @@ APP_HTML = """<!doctype html>
       border: 1px solid var(--line);
       border-radius: 8px;
       background: var(--panel);
-      box-shadow: 0 12px 28px rgba(29, 37, 40, 0.16);
+      box-shadow: 0 12px 28px var(--shadow);
       padding: 4px;
     }
     .thread-option {
@@ -710,7 +716,7 @@ APP_HTML = """<!doctype html>
     .thread-option:hover,
     .thread-option.is-active,
     .thread-option[aria-selected="true"] {
-      background: #edf7f4;
+      background: var(--panel-hover);
       color: var(--ink);
     }
     .thread-option-title {
@@ -775,7 +781,7 @@ APP_HTML = """<!doctype html>
     button {
       padding: 0 16px;
       background: var(--accent);
-      color: white;
+      color: var(--accent-ink);
       border-color: var(--accent);
       font-weight: 650;
       cursor: pointer;
@@ -887,7 +893,7 @@ APP_HTML = """<!doctype html>
       border-radius: 8px;
       padding: 18px;
       color: var(--muted);
-      background: rgba(255,255,255,0.55);
+      background: var(--empty-bg);
     }
     .toc-row {
       display: grid;
@@ -1408,16 +1414,18 @@ DETAIL_HTML = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#101312">
   <title>Thread Search Threadmark</title>
   <style>
     :root {
-      color-scheme: light;
-      --bg: #f7f8f5;
-      --panel: #ffffff;
-      --ink: #1d2528;
-      --muted: #667074;
-      --line: #cfd8d1;
-      --accent: #134e4a;
+      color-scheme: dark;
+      --bg: #101312;
+      --panel: #1a201d;
+      --ink: #e6ece8;
+      --muted: #a0ada7;
+      --line: #34423a;
+      --accent: #8ee7dc;
+      --danger: #ffb4a8;
     }
     * { box-sizing: border-box; }
     body {
@@ -1466,7 +1474,7 @@ DETAIL_HTML = """<!doctype html>
       font: inherit;
     }
     .error {
-      color: #8a1f11;
+      color: var(--danger);
       font-weight: 650;
     }
   </style>

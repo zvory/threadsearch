@@ -5,6 +5,7 @@ from threading import Thread
 
 from planquest.web import (
     APP_HTML,
+    DETAIL_HTML,
     ROBOTS_TXT,
     REMOVED_PUBLIC_API_PATHS,
     SearchHandler,
@@ -256,6 +257,18 @@ def test_app_html_exposes_contents_tab_without_fulltext_route() -> None:
     assert "matched with word variants" not in APP_HTML
     assert "renderMatchNote" not in APP_HTML
     assert "/api/threadmark/" not in APP_HTML
+
+
+def test_web_templates_use_dark_theme() -> None:
+    assert "color-scheme: dark;" in APP_HTML
+    assert "color-scheme: dark;" in DETAIL_HTML
+    assert 'name="theme-color" content="#101312"' in APP_HTML
+    assert 'name="theme-color" content="#101312"' in DETAIL_HTML
+    assert "color-scheme: light;" not in APP_HTML
+    assert "color-scheme: light;" not in DETAIL_HTML
+    assert "#edf7f4" not in APP_HTML
+    assert "rgba(255,255,255,0.55)" not in APP_HTML
+    assert "#8a1f11" not in DETAIL_HTML
 
 
 def test_search_endpoint_reports_prefix_fallback(tmp_path) -> None:
