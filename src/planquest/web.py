@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 from dataclasses import asdict
+import hashlib
 import html
 import json
 import secrets
@@ -361,9 +363,11 @@ def index_stats(
     except sqlite3.Error as exc:
         return {"ok": False, "error": str(exc)}
     source_host = urlparse(source_reader_url).netloc
+    source_thread_url_key = thread_url_key_from_reader_url(source_reader_url)
     threads = [
         {
             "id": thread_id_from_reader_url(source_reader_url),
+            "url_key": source_thread_url_key,
             "title": thread_title_from_reader_url(source_reader_url),
             "reader_url": source_reader_url,
             "source_host": source_host,
@@ -375,6 +379,7 @@ def index_stats(
         "ok": True,
         "source_reader_url": source_reader_url,
         "source_host": source_host,
+        "source_thread_url_key": source_thread_url_key,
         "threads": threads,
         "public_access_mode": "source_linked_search",
         "public_notice": "Search results link back to their source threadmarks.",
@@ -401,6 +406,18 @@ def thread_id_from_reader_url(source_reader_url: str) -> str:
         return slug
     parsed = urlparse(source_reader_url)
     return parsed.netloc or "default"
+
+
+def thread_url_key_from_reader_url(source_reader_url: str) -> str:
+    cleaned = source_reader_url.strip()
+    parsed = urlparse(cleaned)
+    slug = thread_slug_from_reader_url(cleaned)
+    if slug:
+        identity = f"{parsed.netloc.lower()}/threads/{slug}"
+    else:
+        identity = urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path.rstrip("/"), "", ""))
+    digest = hashlib.sha256(identity.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest[:9]).decode("ascii").rstrip("=")
 
 
 def thread_title_from_reader_url(source_reader_url: str) -> str:
@@ -1191,7 +1208,8 @@ APP_HTML = """<!doctype html>
 
     function setThreadOptions(items) {
       threadOptions = items.map((item, index) => ({
-        id: String(item.id || item.reader_url || `thread-${index + 1}`),
+        id: String(item.url_key || item.id || `thread-${index + 1}`),
+        legacy_id: String(item.id || ""),
         title: String(item.title || item.source_host || item.reader_url || `Thread ${index + 1}`),
         reader_url: String(item.reader_url || ""),
         source_host: String(item.source_host || ""),
@@ -1207,14 +1225,15 @@ APP_HTML = """<!doctype html>
       }
       threadPickerInput.disabled = false;
       threadPickerToggle.disabled = false;
-      const initialThread = threadOptions.find(item => item.id === selectedThreadId) || threadOptions[0];
+      const initialThread = findThreadOption(selectedThreadId) || threadOptions[0];
       selectThread(initialThread.id, { runSearch: false });
     }
 
     function fallbackThreadOptions(payload) {
       if (!payload.source_reader_url) return [];
       return [{
-        id: payload.source_reader_url,
+        id: String(payload.source_thread_url_key || "default"),
+        legacy_id: "",
         title: payload.source_host ? `${payload.source_host} reader` : "Source reader",
         reader_url: payload.source_reader_url,
         source_host: payload.source_host || "",
@@ -1224,11 +1243,20 @@ APP_HTML = """<!doctype html>
     }
 
     function selectedThread() {
-      return threadOptions.find(item => item.id === selectedThreadId) || threadOptions[0] || null;
+      return findThreadOption(selectedThreadId) || threadOptions[0] || null;
+    }
+
+    function findThreadOption(value) {
+      if (!value) return null;
+      return threadOptions.find(item => (
+        item.id === value ||
+        item.legacy_id === value ||
+        item.reader_url === value
+      )) || null;
     }
 
     function selectThread(threadId, options = {}) {
-      const item = threadOptions.find(candidate => candidate.id === threadId);
+      const item = findThreadOption(threadId);
       if (!item) return;
       selectedThreadId = item.id;
       activeThreadOptionId = item.id;
@@ -1238,6 +1266,10 @@ APP_HTML = """<!doctype html>
       updateThreadSourceLink(item);
       closeThreadOptions();
       updateUrl();
+      if (options.runSearch && !contentsPanel.hidden) {
+        contentsLoaded = false;
+        loadContents();
+      }
       if (options.runSearch && query.value.trim()) runSearch();
     }
 
@@ -1413,13 +1445,11 @@ APP_HTML = """<!doctype html>
 
     function uiStateParams() {
       const params = new URLSearchParams();
-      if (selectedThreadId && threadOptions.length > 1) params.set("thread", selectedThreadId);
-      if (query.value.trim()) {
-        params.set("q", query.value.trim());
-        if (!allWords.checked) params.set("mode", "any");
-        if (fromOrder.value) params.set("from", fromOrder.value);
-        if (toOrder.value) params.set("to", toOrder.value);
-      }
+      if (selectedThreadId) params.set("thread", selectedThreadId);
+      if (query.value.trim()) params.set("q", query.value.trim());
+      if (!allWords.checked) params.set("mode", "any");
+      if (fromOrder.value) params.set("from", fromOrder.value);
+      if (toOrder.value) params.set("to", toOrder.value);
       if (!contentsPanel.hidden) params.set("view", "contents");
       return params;
     }

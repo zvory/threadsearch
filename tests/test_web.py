@@ -19,6 +19,7 @@ from planquest.web import (
     text_fragment_directive,
     thread_id_from_reader_url,
     thread_title_from_reader_url,
+    thread_url_key_from_reader_url,
 )
 from planquest.indexer import build_index
 from planquest.models import Threadmark
@@ -76,9 +77,11 @@ def test_index_stats_include_public_caps(tmp_path) -> None:
     assert stats["ok"] is True
     assert stats["source_reader_url"].startswith("https://forums.sufficientvelocity.com/threads/")
     assert stats["source_host"] == "forums.sufficientvelocity.com"
+    assert stats["source_thread_url_key"] == thread_url_key_from_reader_url(stats["source_reader_url"])
     assert stats["threads"] == [
         {
             "id": "attempting-to-fulfill-the-plan-mnkh-edition.73217",
+            "url_key": stats["source_thread_url_key"],
             "title": "Attempting to Fulfill the Plan MNKh Edition",
             "reader_url": stats["source_reader_url"],
             "source_host": "forums.sufficientvelocity.com",
@@ -141,6 +144,19 @@ def test_thread_metadata_is_derived_from_reader_url() -> None:
     assert thread_title_from_reader_url(reader_url) == "A Young Womans Political Record"
     assert thread_id_from_reader_url(mnkh_reader_url) == "attempting-to-fulfill-the-plan-mnkh-edition.73217"
     assert thread_title_from_reader_url(mnkh_reader_url) == "Attempting to Fulfill the Plan MNKh Edition"
+
+
+def test_thread_url_key_is_compact_and_opaque() -> None:
+    reader_url = "https://forums.sufficientvelocity.com/threads/a-young-womans-political-record.118774/reader/"
+
+    key = thread_url_key_from_reader_url(reader_url)
+
+    assert key == thread_url_key_from_reader_url(f" {reader_url} ")
+    assert key == thread_url_key_from_reader_url(reader_url.rstrip("/"))
+    assert len(key) == 12
+    assert "young" not in key.lower()
+    assert "118774" not in key
+    assert key.replace("-", "").replace("_", "").isalnum()
 
 
 def test_text_fragment_directive_targets_first_marked_span_with_context() -> None:
@@ -211,6 +227,9 @@ def test_app_html_exposes_contents_tab_without_fulltext_route() -> None:
     assert "fuzzyThreadScore" in APP_HTML
     assert "filteredThreadOptions" in APP_HTML
     assert "selectThread" in APP_HTML
+    assert "findThreadOption" in APP_HTML
+    assert "url_key" in APP_HTML
+    assert "legacy_id" in APP_HTML
     assert "payload.threads" in APP_HTML
     assert 'id="query"' in APP_HTML
     assert 'id="from-order"' in APP_HTML
@@ -232,7 +251,9 @@ def test_app_html_exposes_contents_tab_without_fulltext_route() -> None:
     assert "Word variants" not in APP_HTML
     assert "One hit per threadmark" not in APP_HTML
     assert "uiStateParams" in APP_HTML
+    assert 'params.set("thread", selectedThreadId)' in APP_HTML
     assert 'params.set("view", "contents")' in APP_HTML
+    assert "threadOptions.length > 1" not in APP_HTML
     assert "resultCountText" in APP_HTML
     assert "All matching threadmarks" not in APP_HTML
     assert "prefix fallback" not in APP_HTML
