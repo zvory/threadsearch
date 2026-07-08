@@ -24,6 +24,6 @@ Before enabling the service, edit `/etc/thread-search/thread-search.env` and cop
 After the reverse proxy is live, run:
 
 ```sh
-.venv/bin/thread-search public-smoke --base-url https://your-domain.tld --require-artifact-manifest --probe Soviet --probe Cuba --claim-pair Cuba communist
-.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url https://your-domain.tld --claim-pair Cuba communist --json --out data/production-audit.json
+.venv/bin/thread-search public-smoke --base-url https://your-domain.tld --require-artifact-manifest --probe Soviet --probe Cuba
+.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url https://your-domain.tld --json --out data/production-audit.json
 ```

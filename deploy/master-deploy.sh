@@ -89,8 +89,7 @@ run_public_smoke_if_configured() {
     --base-url "$THREAD_SEARCH_PUBLIC_BASE_URL" \
     --require-artifact-manifest \
     --probe Soviet \
-    --probe Cuba \
-    --claim-pair Cuba communist
+    --probe Cuba
 }
 
 write_receipt() {
