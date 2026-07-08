@@ -340,6 +340,13 @@ After a passing artifact audit, `deploy-bundle` creates separate upload tarballs
 ```
 
 The app tarball excludes `data/` and `dist/`. The private artifact tarball contains only `thread-search.sqlite`, `manifest.json`, and `README.deploy.txt`; do not publish it or place it in a web root.
+To deploy the exact current `master` commit from the machine that holds the private artifact, run:
+
+```sh
+THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh
+```
+
+The deploy wrapper refuses dirty trees and non-`master` branches, fast-forwards from `origin/master`, runs the public-safe tests, refreshes and verifies deploy bundles, deploys with Fly.io, and runs live `public-smoke` when `THREAD_SEARCH_PUBLIC_BASE_URL` is set.
 The included `compose.yaml` runs the exported artifact read-only, requires the artifact manifest at startup, requires `THREAD_SEARCH_PUBLIC_CONTACT` and `THREAD_SEARCH_REMOVAL_REQUEST_URL` to be set, and binds the service to `127.0.0.1:8765` for use behind a reverse proxy.
 An example nginx reverse-proxy config is available at `deploy/nginx-thread-search.conf.example`; keep the app bound to loopback and expose HTTPS through the proxy.
 For a non-Docker VPS, `deploy/systemd/` contains a hardened loopback-only service example and environment template that use the same manifest-gated startup command.

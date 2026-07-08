@@ -124,6 +124,27 @@ The check command verifies the bundle manifest, tarball checksums and sizes, pub
 
 The app bundle includes `.github/workflows/ci.yml`, which runs the public-safe test suite without `data/` or `dist/`. CI verifies code and deployment guardrails, not the private production artifact; run `deploy-bundle-check` and the live audit on the machine that has the private artifact files.
 
+## Deploy Every Master Commit
+
+The production Docker image uses `dist/thread-search-public/`, which contains the private server-side SQLite artifact and is intentionally ignored by git. Because CI does not have that artifact by default, the reliable deployment path for this repository is a local deploy from the checkout that owns the private artifact.
+
+From a clean deployment checkout:
+
+```sh
+git checkout master
+THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh
+```
+
+The wrapper refuses to deploy unless the checkout is on `master`, the working tree is clean, and the local `master` can be fast-forwarded to exactly `origin/master`. It then installs the package with dev dependencies, runs `pytest -q`, requires `dist/thread-search-public/thread-search.sqlite`, `manifest.json`, and `README.deploy.txt`, refreshes the upload bundles, runs `deploy-bundle-check`, deploys with `flyctl deploy --remote-only`, and writes a local receipt under `data/deployments/`.
+
+Set `THREAD_SEARCH_PUBLIC_BASE_URL` to run the live `public-smoke` check after Fly reports a successful deploy. Leave it unset only when the target URL is not yet reachable. You can pass additional Fly deploy flags after the script name, for example:
+
+```sh
+THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh --strategy rolling
+```
+
+The script assumes Fly credentials are already available through `flyctl auth login` or `FLY_API_TOKEN`. If CI deployment becomes required later, first move the private artifact into a protected runtime storage path or another secure artifact source; do not commit `data/` or the private SQLite artifact to make CI builds work.
+
 ## Run Locally
 
 ```sh

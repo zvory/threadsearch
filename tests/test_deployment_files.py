@@ -46,6 +46,27 @@ def test_deployment_docs_keep_direct_docker_bound_to_loopback() -> None:
     assert "excludes `data/`, `dist/`, `.venv/`, and `.git/`" in deployment
     assert "verifies the bundle manifest, tarball checksums and sizes" in deployment
     assert "--deploy-bundle-manifest dist/deploy-bundles/deploy-bundle-manifest.json" in deployment
+    assert "deploy/master-deploy.sh" in deployment
+    assert "origin/master" in deployment
+    assert "THREAD_SEARCH_PUBLIC_BASE_URL" in deployment
+    assert "flyctl deploy --remote-only" in deployment
+
+
+def test_master_deploy_script_deploys_only_verified_master() -> None:
+    script = (ROOT / "deploy" / "master-deploy.sh").read_text(encoding="utf-8")
+
+    assert "THREAD_SEARCH_DEPLOY_BRANCH:-master" in script
+    assert 'git status --short' in script
+    assert 'refs/remotes/$DEPLOY_REMOTE/$DEPLOY_BRANCH' in script
+    assert 'git merge --ff-only "$DEPLOY_REMOTE/$DEPLOY_BRANCH"' in script
+    assert 'dist/thread-search-public' in script
+    assert 'thread-search.sqlite manifest.json README.deploy.txt' in script
+    assert '"$PYTHON_BIN" -m pytest -q' in script
+    assert '"$PYTHON_BIN" -m planquest.cli deploy-bundle' in script
+    assert '"$PYTHON_BIN" -m planquest.cli deploy-bundle-check' in script
+    assert "--remote-only" in script
+    assert 'public-smoke' in script
+    assert 'data/deployments' in script
 
 
 def test_nginx_example_keeps_app_private_and_rate_limited() -> None:
