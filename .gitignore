@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+*.egg-info/
+
+# Downloaded pages, extracted quest text, and local search databases.
+# Do not commit copyrighted story content or derived local indexes by default.
+data/
+dist/

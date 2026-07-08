@@ -1,0 +1,21 @@
+services:
+  thread-search:
+    build: .
+    image: thread-search:local
+    ports:
+      - "127.0.0.1:8765:8765"
+    environment:
+      THREAD_SEARCH_DB: /data/thread-search.sqlite
+      THREAD_SEARCH_ARTIFACT_MANIFEST: /data/manifest.json
+      THREAD_SEARCH_PUBLIC_CONTACT: "${THREAD_SEARCH_PUBLIC_CONTACT:?set THREAD_SEARCH_PUBLIC_CONTACT to a public contact or mailto URL}"
+      THREAD_SEARCH_REMOVAL_REQUEST_URL: "${THREAD_SEARCH_REMOVAL_REQUEST_URL:?set THREAD_SEARCH_REMOVAL_REQUEST_URL to a public removal request URL}"
+    volumes:
+      - ./dist/thread-search-public:/data:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped

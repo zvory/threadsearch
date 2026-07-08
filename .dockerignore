@@ -1,0 +1,12 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+*.pyc
+*.egg-info
+data
+dist/*
+!dist/thread-search-public/
+!dist/thread-search-public/thread-search.sqlite
+!dist/thread-search-public/manifest.json
+!dist/thread-search-public/README.deploy.txt

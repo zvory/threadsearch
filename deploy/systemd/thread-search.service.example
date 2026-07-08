@@ -1,0 +1,41 @@
+[Unit]
+Description=Thread Search public snippet search
+Documentation=/srv/thread-search/app/docs/deployment.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=threadsearch
+Group=threadsearch
+WorkingDirectory=/srv/thread-search/app
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/thread-search/thread-search.env
+ExecStart=/srv/thread-search/app/.venv/bin/thread-search serve \
+  --db /srv/thread-search/artifact/thread-search.sqlite \
+  --host 127.0.0.1 \
+  --port 8765 \
+  --require-launch-ready \
+  --require-artifact-manifest \
+  --artifact-manifest /srv/thread-search/artifact/manifest.json \
+  --public-contact ${THREAD_SEARCH_PUBLIC_CONTACT} \
+  --removal-request-url ${THREAD_SEARCH_REMOVAL_REQUEST_URL} \
+  --probe Soviet \
+  --probe Cuba
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ReadOnlyPaths=/srv/thread-search/app /srv/thread-search/artifact
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

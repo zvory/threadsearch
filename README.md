@@ -1,0 +1,358 @@
+# Thread Search
+
+Local, polite search tooling for forum reader threads.
+
+Pass a reader URL to crawl commands, or set `THREAD_SEARCH_READER_URL` for a default:
+
+```sh
+export THREAD_SEARCH_READER_URL='https://forums.sufficientvelocity.com/threads/example-thread.1/reader/'
+```
+
+The default workflow downloads only the main `Threadmarks` reader category. It does not fetch `Sidestory` or `Apocrypha`.
+
+## Access Policy
+
+As of the scout pass on July 8, 2026:
+
+- `robots.txt` allows ordinary agents to fetch `/threads/.../reader/`.
+- `robots.txt` disallows `/search/`, `/login/`, `/account/`, `/attachments/`, and similar account/system paths.
+- `robots.txt` explicitly disallows several AI/OpenAI user agents, including `GPTBot` and `ChatGPT-User`.
+- This tool is built for local, user-run archival search. It is not a training-data crawler and does not call OpenAI or other embedding APIs with the thread text.
+
+Before running a full crawl, read [docs/access-policy.md](docs/access-policy.md). Keep `data/` private unless you have explicit permission to redistribute the text and any deployment complies with Sufficient Velocity's rules.
+
+To snapshot the current machine-readable site access posture without downloading thread text, run:
+
+```sh
+.venv/bin/thread-search site-review --refresh --delay 30 --out data/site-policy-review.md
+```
+
+The report records `robots.txt` decisions for the target reader, common blocked forum paths, configured AI user-agent samples, and the official Sufficient Velocity policy URLs to review manually. Use `--offline` after the first snapshot to regenerate from the cached `robots.txt`.
+
+## Setup
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+```
+
+Optional: set a contact string for the crawler user agent.
+
+```sh
+export THREAD_SEARCH_CONTACT='you@example.com'
+```
+
+## Scout
+
+Scouting performs one cached request to the reader page and reports the category/page structure.
+
+```sh
+.venv/bin/thread-search scout
+```
+
+## Scrape Main Threadmarks
+
+The default delay is intentionally slow and every page is cached. A full main-threadmark scrape is 27 reader pages at the time of scouting.
+
+Plan the crawl first:
+
+```sh
+.venv/bin/thread-search plan --manifest data/crawl-plan.json
+```
+
+For the most cautious crawl, prefetch one uncached reader page per run:
+
+```sh
+.venv/bin/thread-search prefetch --limit 1 --delay 30
+```
+
+Repeat that command until `remaining_selected_uncached` is `0`. Then build only from cached pages:
+
+```sh
+.venv/bin/thread-search build --offline --probe Soviet
+```
+
+You can also target one page explicitly:
+
+```sh
+.venv/bin/thread-search prefetch --from-page 2 --to-page 2 --limit 1 --delay 30
+```
+
+Then run the full scrape/index/validation pipeline:
+
+```sh
+.venv/bin/thread-search build --delay 8 --probe Soviet
+```
+
+Transient network failures are retried conservatively by default. Tune with `--retries` and `--retry-delay` if needed.
+
+The lower-level scrape command is still available:
+
+```sh
+.venv/bin/thread-search scrape --delay 8
+```
+
+For a limited verification run:
+
+```sh
+.venv/bin/thread-search build --max-pages 1 --expected-threadmarks 10 --probe Soviet
+```
+
+## Build Search Index
+
+```sh
+.venv/bin/thread-search index
+```
+
+## Validate Corpus
+
+After a full crawl and index, validate that the corpus has the expected main-threadmark shape and that a probe term works:
+
+```sh
+.venv/bin/thread-search validate --probe Soviet
+```
+
+To inspect current progress at any point:
+
+```sh
+.venv/bin/thread-search status
+```
+
+Use `status --strict` when a nonzero exit should mean “not ready yet.”
+
+Successful network fetches are recorded in `data/raw/fetch-log.jsonl`. This is an ignored local receipt trail with timestamp, URL, cache path, byte count, user agent, delay, and retry settings.
+
+To get the next safest command in the cautious crawl/deploy workflow:
+
+```sh
+.venv/bin/thread-search next-step --offline
+.venv/bin/thread-search next-step --offline --public-base-url http://127.0.0.1:8765
+```
+
+Run the printed command, then rerun `next-step --offline`. It will move from one-page prefetch commands to offline build, artifact export, and final audit as each prerequisite becomes true. Pass `--public-base-url` when you want the final audit recommendation to include live HTTP smoke evidence.
+After a passing final audit, `next-step` also checks the deployment bundle manifest and recommends `deploy-bundle` if the upload bundles are missing or no longer verify.
+
+To write a Markdown runbook for a multi-day crawl or handoff:
+
+```sh
+.venv/bin/thread-search runbook --offline --out data/operator-runbook.md
+```
+
+To write a no-story-text author review packet with prototype links, safety scope, and verification hashes:
+
+```sh
+.venv/bin/thread-search author-review --offline --public-base-url http://127.0.0.1:8765 --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --deploy-bundle-manifest dist/deploy-bundles/deploy-bundle-manifest.json --out data/author-review.md
+```
+
+For a short-lived author preview URL from a local machine, start the manifest-gated loopback server plus an optional `localtunnel` URL:
+
+```sh
+THREAD_SEARCH_PUBLIC_CONTACT="mailto:contact@your-domain.tld" \
+THREAD_SEARCH_REMOVAL_REQUEST_URL="https://your-domain.tld/thread-search-removal" \
+.venv/bin/thread-search preview-start --probe Soviet --probe Cuba
+.venv/bin/thread-search preview-status --smoke --probe Soviet --probe Cuba --claim-pair Cuba communist
+```
+
+Use `preview-stop` when the review window closes. See [docs/deployment.md](docs/deployment.md) for the full audit and author-packet refresh sequence.
+
+## Search From CLI
+
+```sh
+.venv/bin/thread-search search Cuba
+.venv/bin/thread-search search Cuba --format json
+.venv/bin/thread-search search Cuba --sort timeline
+.venv/bin/thread-search search Cuba --prefix-variants --sort timeline
+.venv/bin/thread-search search Cuba --alias Castro --sort timeline
+```
+
+Search groups results to one hit per threadmark by default. Use `--all-chunks` to inspect every matching chunk, `--sort timeline` when recap order matters more than relevance, and `--alias` for known alternate names that should contribute to the same bounded result list. Exact search is attempted first; if an exact keyword has no hits, search falls back to prefix matching for simple words, so `Cuba` can surface `Cuban`. The web UI labels prefix-fallback results and offers an `Exact only` retry that quotes the term, so `Cuba` can be checked separately from `Cuban`. Use `--prefix-variants` or the web UI's Word variants checkbox when you deliberately want `Cuba` and `Cuban`-style word-prefix variants included even when exact hits exist. Common unquoted stopwords such as `the`, `of`, and `and` are ignored; put a phrase in quotes when those words need to be literal. JSON CLI/API output includes returned result counts plus total matching threadmark/chunk counts and per-term alias diagnostics, and the web UI labels prefix-fallback and opt-in prefix-variant matches so near-misses are not mistaken for exact hits.
+The web UI stays a direct search surface: multiword searches remain searches. For deterministic claim checks, use the `claim` CLI or `/api/claim` with an explicit `claim=` value. The Claim, Evidence Pack, and Recap APIs and CLI commands also accept q-only question-style or possessive claim forms such as `did Cuba turn communist` and report when the split was inferred, while plain multiword topic searches remain topic searches.
+
+For indexed-term suggestions:
+
+```sh
+.venv/bin/thread-search suggest Cub
+.venv/bin/thread-search suggest Cubaa
+.venv/bin/thread-search terms --prefix Cub
+.venv/bin/thread-search terms --limit 100 --min-chunks 3
+.venv/bin/thread-search explain Cuba
+```
+
+Suggestions are prefix-based first. If a prefix has no matches and the final query term is at least four characters, the command and web API return bounded near-term suggestions with edit-distance metadata, which helps with typos without exposing story text. `terms` and `/api/terms` expose a metadata-only vocabulary index with chunk and occurrence counts, optional prefix filtering, and stopword filtering by default. `explain` and `/api/explain` show exact counts, prefix counts, resolved match mode, per-term breakdowns for multi-term queries, indexed term hints, and cautions before you open snippet-bearing evidence.
+
+For a metadata-only table of contents:
+
+```sh
+.venv/bin/thread-search toc
+```
+
+For local retrieval context:
+
+```sh
+.venv/bin/thread-search context Cuba --limit 8
+```
+
+For a coverage report across threadmarks:
+
+```sh
+.venv/bin/thread-search report Cuba
+.venv/bin/thread-search report Cuba --sort timeline
+.venv/bin/thread-search report Cuba --alias Castro --sort timeline
+```
+
+Use `--alias` to merge alternate names into the same bounded threadmark report. Reports include source-linked snippets and aggregate hit counts without exposing full text.
+
+For metadata-only threadmark coverage without snippets:
+
+```sh
+.venv/bin/thread-search coverage Cuba
+.venv/bin/thread-search coverage Cuba --alias Castro --format json
+.venv/bin/thread-search coverage Soviet --bucket-size 25
+```
+
+For metadata-only topic comparison and overlap counts:
+
+```sh
+.venv/bin/thread-search compare Cuba communist
+.venv/bin/thread-search compare Cuba communist Soviet --format json
+```
+
+`compare` returns per-topic coverage totals, first/last matching threadmarks, timeline buckets, and source-linked overlap titles without snippets or full text.
+
+For source-linked mention windows:
+
+```sh
+.venv/bin/thread-search mentions Cuba
+.venv/bin/thread-search mentions Cuba --sort timeline
+.venv/bin/thread-search mentions Cuba --alias Castro --sort timeline
+```
+
+For a bounded topic dossier that combines coverage and mention windows:
+
+```sh
+.venv/bin/thread-search dossier Cuba
+.venv/bin/thread-search dossier Cuba --format json
+.venv/bin/thread-search dossier Cuba --alias Castro --format json
+```
+
+`dossier` is the easiest local RAG handoff shape: it contains source-linked snippets and metadata, not full threadmark bodies.
+Use `--alias` for known alternate names or nearby terms that should be bundled into the same topic dossier, mention-window review, or topic-side claim check. Use `--prefix-variants` when word-prefix variants should be included across the dossier and optional claim checks.
+The web UI renders a compact timeline recap and topic dossier after a query is active; its Topic aliases field accepts comma-separated terms, the Word variants checkbox sends `prefix_variants=1` to safe public endpoints, and the `Recap JSON`, `Report JSON`, `Dossier JSON`, `Evidence Pack JSON`, `Mentions JSON`, `Coverage JSON`, and `Explain JSON` links preserve the current safe public evidence views for local notes or scripts. The page URL tracks the active bounded search state, and `Copy link` copies a shareable link without adding API-only defaults. For broad topics, the page also shows a metadata-only list of matching threadmarks with per-term alias/prefix diagnostics so total coverage is visible without returning more story text; click a timeline bucket to narrow the current search to that threadmark range, then use `Clear range` to return to the full query.
+
+For one local note or local-only RAG prompt that combines a topic dossier with claim checks:
+
+```sh
+.venv/bin/thread-search evidence-pack Cuba --claim communist --out data/cuba-evidence-pack.md
+.venv/bin/thread-search evidence-pack Cuba --alias Castro --claim communist --format json
+.venv/bin/thread-search evidence-pack "did Cuba turn communist" --format json
+```
+
+`evidence-pack` is bounded retrieval, not a generated answer. It combines the dossier fields with optional claim checks so the Cuba/communist question can be reviewed from one source-linked file.
+
+For a compact extractive topic recap in timeline order:
+
+```sh
+.venv/bin/thread-search recap Cuba --claim communist
+.venv/bin/thread-search recap Cuba --alias Castro --claim communist --format json
+.venv/bin/thread-search recap "did Cuba turn communist" --format json
+```
+
+`recap` is a reader-facing version of the same bounded evidence: timeline snippets, mention windows, and optional claim diagnostics. It does not generate a factual answer or include full threadmark bodies; use the source links to verify conclusions.
+
+For a source-linked fact-check shape:
+
+```sh
+.venv/bin/thread-search claim Cuba communist
+.venv/bin/thread-search claim Cuba communist --alias Castro
+.venv/bin/thread-search claim "did Cuba turn communist"
+```
+
+`claim` classifies the query pair as same-chunk overlap, adjacent-chunk overlap, same-threadmark-only overlap, no overlap, or missing terms, with evidence snippet counts shown separately from total overlap counts. Topic aliases expand the first query only; JSON output shows per-term match diagnostics, exact primary-query counts, proximity/chunk-distance notes for each evidence row, lexical negation-cue counts near highlighted claim terms, and compact caution codes for prefix-expanded, prefix-only topic, weak-proximity, missing-side, no-overlap, or negated evidence. It is deterministic search evidence, not an LLM truth verdict.
+
+See [docs/local-rag.md](docs/local-rag.md) for the local RAG workflow and semantic-search guardrails.
+
+Corpus note: in the complete main-threadmark corpus crawled on July 8, 2026, exact `Cuba` has no hits. Normal search falls back to prefix matching and can surface `Cuban`, with the fallback labeled in the public UI/API; nearby exact terms found locally also include `Castro`. Use `Soviet` as the launch-readiness probe because it is a stable exact hit.
+
+## Local Web UI
+
+```sh
+.venv/bin/thread-search serve --port 8765
+```
+
+Then open http://127.0.0.1:8765.
+
+For private local reading, enable full-text threadmark pages:
+
+```sh
+.venv/bin/thread-search serve --port 8765 --private-fulltext
+```
+
+Keep `--private-fulltext` off for public deployments unless redistribution permission explicitly covers full text. The CLI refuses to expose private full-text mode on a non-loopback host unless you pass an explicit override flag.
+
+The public API has server-side caps for result counts, mention-window size, query length, and requests per client IP. See [docs/deployment.md](docs/deployment.md) before exposing it to the internet.
+Snippet-bearing public responses also have an aggregate snippet-character budget so a single API response cannot become a bulk text export.
+The web UI and stats endpoint include the original Sufficient Velocity reader URL plus a public-mode notice for attribution and source navigation. For a public instance, set `--public-contact` or `THREAD_SEARCH_PUBLIC_CONTACT`, and set `--removal-request-url` or `THREAD_SEARCH_REMOVAL_REQUEST_URL`, so readers and rights holders have a visible operator/removal path. Empty values and reserved example placeholders are rejected for public/non-loopback serving, artifact export, public smoke checks, and artifact audit.
+
+For public serving, export the artifact first, then use `serve --host 0.0.0.0 --require-launch-ready --require-artifact-manifest --artifact-manifest dist/thread-search-public/manifest.json --probe Soviet --probe Cuba` so a partial, unsafe, or permission-ungated database cannot bind accidentally. Manifest-gated serving refuses runtime settings that broaden the exported public contract. Non-loopback hosts require both the launch gate and artifact manifest gate by default; use `--allow-unguarded-public-bind` or `--allow-unmanifested-public-bind` only for a deliberate private-network override.
+
+After starting a manifest-backed public-mode server, smoke-test the live HTTP surface:
+
+```sh
+.venv/bin/thread-search public-smoke --base-url http://127.0.0.1:8765 --require-artifact-manifest --probe Soviet --probe Cuba --claim-pair Cuba communist
+```
+
+This checks the running server's noindex/robots headers, share-link and match-diagnostic UI shell, health and stats contract, validated-manifest startup signal, visible contact/removal metadata, disabled full-text route, blocked private corpus/artifact download paths, default and prefix-variant probe searches, metadata-only terms and query explain output with per-term breakdowns, bounded mentions, metadata-only coverage and compare responses, bounded dossier, evidence-pack, and recap responses, explicit claim checks, and q-only claim/evidence-pack/recap inference for the Cuba/communist example. Omit `--require-artifact-manifest` only for local loopback development before export.
+The live audit runs its own public smoke pass. With the default `60` requests/minute per-IP limiter, wait a minute between a standalone `public-smoke` run and a live `audit`, or restart the local loopback process before the audit.
+
+Before any public snippet-search deployment, run:
+
+```sh
+.venv/bin/thread-search permission-note --out data/permission-note.md
+.venv/bin/thread-search permission-request --out data/permission-request.md --public-base-url https://your-public-host.example --operator "Your handle"
+.venv/bin/thread-search permission-note --check --out data/permission-note.md
+.venv/bin/thread-search launch-check --probe Soviet --probe Cuba
+.venv/bin/thread-search audit --probe Soviet --probe Cuba
+```
+
+The first command writes a local evidence template. The second writes a no-story-text permission request draft you can send to the author or relevant site contact. After you receive a reply, edit the permission note to record the author permission, site-rule review, public deployment scope, and operator decision; keep the named checklist items so the export gate can verify that each required evidence category was addressed. The check fails while required sections or checklist items are missing, TODO placeholders remain, any box is unchecked, any checklist detail is blank or generic, date fields lack `YYYY-MM-DD`, or the operator decision is negative or too vague to confirm public snippet-search deployment.
+
+To package the private server-side database and a manifest for deployment:
+
+```sh
+.venv/bin/thread-search artifact --probe Soviet --probe Cuba --permission-note data/permission-note.md --public-contact "$THREAD_SEARCH_PUBLIC_CONTACT" --removal-request-url "$THREAD_SEARCH_REMOVAL_REQUEST_URL"
+```
+
+This writes `dist/thread-search-public/`. Do not serve that directory as static files; the SQLite database is only meant to be mounted privately behind the search server. Export and final audit reject unexpected files in that directory, such as extracted JSONL, raw HTML, notes, or other static assets. The export fails unless `--public-contact` and `--removal-request-url` are set to non-placeholder mailto/email/HTTP(S) values. The manifest records only permission-note metadata and a hash, not the note text. It also records the public runtime contract: launch checks and manifest validation stay enabled, private full-text and public chunk-result overrides stay off, public caps may only be lowered at serve time, and the public UI supports contact/removal notice metadata.
+
+After exporting, include the artifact manifest in the final audit:
+
+```sh
+.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md
+.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url http://127.0.0.1:8765 --claim-pair Cuba communist
+```
+
+When `audit` receives both `--artifact-manifest` and `--public-base-url`, its live smoke check requires `/api/stats` to report that the running server validated an artifact manifest at startup. For server-side deployment notes, see [docs/deployment.md](docs/deployment.md).
+After a passing artifact audit, `deploy-bundle` creates separate upload tarballs for the public-safe app code and the private server-side artifact:
+
+```sh
+.venv/bin/thread-search deploy-bundle
+.venv/bin/thread-search deploy-bundle-check
+```
+
+The app tarball excludes `data/` and `dist/`. The private artifact tarball contains only `thread-search.sqlite`, `manifest.json`, and `README.deploy.txt`; do not publish it or place it in a web root.
+The included `compose.yaml` runs the exported artifact read-only, requires the artifact manifest at startup, requires `THREAD_SEARCH_PUBLIC_CONTACT` and `THREAD_SEARCH_REMOVAL_REQUEST_URL` to be set, and binds the service to `127.0.0.1:8765` for use behind a reverse proxy.
+An example nginx reverse-proxy config is available at `deploy/nginx-thread-search.conf.example`; keep the app bound to loopback and expose HTTPS through the proxy.
+For a non-Docker VPS, `deploy/systemd/` contains a hardened loopback-only service example and environment template that use the same manifest-gated startup command.
+
+## Data Layout
+
+Generated files are ignored by git:
+
+- `data/raw/`: cached HTML and `robots.txt`
+- `data/raw/fetch-log.jsonl`: local network-fetch receipt log
+- `data/permission-note.md`: local public-deployment permission and site-rule review note
+- `data/permission-request.md`: optional local request draft; this is not approval evidence by itself
+- `data/author-review.md`: optional no-story-text prototype review packet for author/operator review
+- `data/thread-search-threadmarks.jsonl`: extracted main-threadmark records
+- `data/thread-search.sqlite`: local SQLite FTS index
+- `dist/`: private deployment artifacts

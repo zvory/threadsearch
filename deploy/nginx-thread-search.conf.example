@@ -1,0 +1,51 @@
+# Example nginx front end for Thread Search.
+#
+# Replace thread-search.example and certificate paths before use.
+# Keep the upstream service bound to 127.0.0.1:8765 so nginx is the only
+# internet-facing process.
+
+limit_req_zone $binary_remote_addr zone=thread_search_api:10m rate=30r/m;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name thread-search.example;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name thread-search.example;
+
+    ssl_certificate /etc/letsencrypt/live/thread-search.example/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/thread-search.example/privkey.pem;
+
+    client_max_body_size 1m;
+
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    location ~ ^/(data|dist|raw|planquest\.sqlite|manifest\.json|README\.deploy\.txt)(/|$) {
+        return 404;
+    }
+
+    location /api/ {
+        limit_req zone=thread_search_api burst=20 nodelay;
+        proxy_pass http://127.0.0.1:8765;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8765;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
