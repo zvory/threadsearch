@@ -25,6 +25,9 @@ from .search import (
 
 NON_HTML_CSP = "default-src 'none'; base-uri 'none'; frame-ancestors 'none'"
 DEFAULT_PUBLIC_SNIPPET_BUDGET_CHARS = 6000
+THREAD_TITLE_OVERRIDES = {
+    "attempting-to-fulfill-the-plan-mnkh-edition.73217": "Attempting to Fulfill the Plan MNKh Edition",
+}
 REMOVED_PUBLIC_API_PATHS = {
     "/api/suggest",
     "/api/terms",
@@ -449,6 +452,8 @@ def thread_title_from_reader_url(source_reader_url: str) -> str:
     parsed = urlparse(source_reader_url)
     if not slug:
         return parsed.netloc or "Thread"
+    if slug in THREAD_TITLE_OVERRIDES:
+        return THREAD_TITLE_OVERRIDES[slug]
     title_slug = slug
     parts = slug.rsplit(".", 1)
     if len(parts) == 2 and parts[1].isdigit():
@@ -608,6 +613,19 @@ APP_HTML = """<!doctype html>
     .thread-picker {
       position: relative;
       width: min(420px, calc(100vw - 32px));
+    }
+    .thread-source-link {
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 650;
+      text-decoration: none;
+      width: max-content;
+    }
+    .thread-source-link:hover {
+      text-decoration: underline;
+    }
+    .thread-source-link[hidden] {
+      display: none;
     }
     .thread-picker-label {
       display: block;
@@ -921,6 +939,7 @@ APP_HTML = """<!doctype html>
           </div>
           <div id="thread-options" class="thread-options" role="listbox" hidden></div>
         </div>
+        <a id="thread-source-link" class="thread-source-link" href="#" target="_blank" rel="noopener noreferrer" hidden>Source thread</a>
       </div>
       <div id="count" class="count"></div>
     </header>
@@ -961,6 +980,7 @@ APP_HTML = """<!doctype html>
     const threadPickerInput = document.querySelector("#thread-picker-input");
     const threadPickerToggle = document.querySelector("#thread-picker-toggle");
     const threadOptionsPanel = document.querySelector("#thread-options");
+    const threadSourceLink = document.querySelector("#thread-source-link");
     const form = document.querySelector("#search-form");
     const query = document.querySelector("#query");
     const fromOrder = document.querySelector("#from-order");
@@ -1086,6 +1106,7 @@ APP_HTML = """<!doctype html>
         threadPickerInput.value = "";
         threadPickerInput.disabled = true;
         threadPickerToggle.disabled = true;
+        updateThreadSourceLink(null);
         return;
       }
       threadPickerInput.disabled = false;
@@ -1118,9 +1139,21 @@ APP_HTML = """<!doctype html>
       threadPickerInput.value = item.title;
       threadPickerInput.dataset.selectedThreadId = item.id;
       updateStatsText();
+      updateThreadSourceLink(item);
       closeThreadOptions();
       updateUrl();
       if (options.runSearch && query.value.trim()) runSearch();
+    }
+
+    function updateThreadSourceLink(item) {
+      if (!item || !item.reader_url) {
+        threadSourceLink.hidden = true;
+        threadSourceLink.removeAttribute("href");
+        return;
+      }
+      threadSourceLink.hidden = false;
+      threadSourceLink.href = item.reader_url;
+      threadSourceLink.textContent = "Source thread";
     }
 
     function updateStatsText() {

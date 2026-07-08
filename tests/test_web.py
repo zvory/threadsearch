@@ -80,8 +80,8 @@ def test_index_stats_include_public_caps(tmp_path) -> None:
     assert stats["source_host"] == "forums.sufficientvelocity.com"
     assert stats["threads"] == [
         {
-            "id": "example-thread.1",
-            "title": "Example Thread",
+            "id": "attempting-to-fulfill-the-plan-mnkh-edition.73217",
+            "title": "Attempting to Fulfill the Plan MNKh Edition",
             "reader_url": stats["source_reader_url"],
             "source_host": "forums.sufficientvelocity.com",
             "threadmarks": 1,
@@ -140,9 +140,14 @@ def test_health_payload_checks_database_readiness(tmp_path) -> None:
 
 def test_thread_metadata_is_derived_from_reader_url() -> None:
     reader_url = "https://forums.sufficientvelocity.com/threads/a-young-womans-political-record.118774/reader/"
+    mnkh_reader_url = (
+        "https://forums.sufficientvelocity.com/threads/attempting-to-fulfill-the-plan-mnkh-edition.73217/reader/"
+    )
 
     assert thread_id_from_reader_url(reader_url) == "a-young-womans-political-record.118774"
     assert thread_title_from_reader_url(reader_url) == "A Young Womans Political Record"
+    assert thread_id_from_reader_url(mnkh_reader_url) == "attempting-to-fulfill-the-plan-mnkh-edition.73217"
+    assert thread_title_from_reader_url(mnkh_reader_url) == "Attempting to Fulfill the Plan MNKh Edition"
 
 
 def test_health_payload_rejects_missing_or_invalid_database(tmp_path) -> None:
@@ -167,6 +172,9 @@ def test_app_html_exposes_contents_tab_without_fulltext_route() -> None:
     assert 'id="source-link"' not in APP_HTML
     assert 'id="thread-picker"' in APP_HTML
     assert 'id="thread-picker-input"' in APP_HTML
+    assert 'id="thread-source-link"' in APP_HTML
+    assert "Source thread" in APP_HTML
+    assert "updateThreadSourceLink" in APP_HTML
     assert 'role="combobox"' in APP_HTML
     assert 'id="thread-options"' in APP_HTML
     assert 'role="listbox"' in APP_HTML

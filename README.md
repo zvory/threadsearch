@@ -5,7 +5,7 @@ Local, polite search tooling for forum reader threads.
 Pass a reader URL to crawl commands, or set `THREAD_SEARCH_READER_URL` for a default:
 
 ```sh
-export THREAD_SEARCH_READER_URL='https://forums.sufficientvelocity.com/threads/example-thread.1/reader/'
+export THREAD_SEARCH_READER_URL='https://forums.sufficientvelocity.com/threads/attempting-to-fulfill-the-plan-mnkh-edition.73217/reader/'
 ```
 
 The default workflow downloads only the main `Threadmarks` reader category. It does not fetch `Sidestory` or `Apocrypha`.

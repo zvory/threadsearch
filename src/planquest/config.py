@@ -5,7 +5,7 @@ from pathlib import Path
 
 TARGET_READER_URL = os.environ.get(
     "THREAD_SEARCH_READER_URL",
-    "https://forums.sufficientvelocity.com/threads/example-thread.1/reader/",
+    "https://forums.sufficientvelocity.com/threads/attempting-to-fulfill-the-plan-mnkh-edition.73217/reader/",
 )
 
 DEFAULT_DATA_DIR = Path("data")
