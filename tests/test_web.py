@@ -7,7 +7,6 @@ from planquest.web import (
     APP_HTML,
     DETAIL_HTML,
     ROBOTS_TXT,
-    REMOVED_PUBLIC_API_PATHS,
     SearchHandler,
     SlidingWindowRateLimiter,
     add_csp_nonce,
@@ -63,12 +62,8 @@ def test_index_stats_include_public_caps(tmp_path) -> None:
     stats = index_stats(
         db,
         search_limit_cap=12,
-        report_limit_cap=34,
-        mention_limit_cap=45,
         threadmark_limit_cap=46,
         query_char_cap=56,
-        mention_window_char_cap=67,
-        snippet_budget_char_cap=89,
         rate_limit_per_minute=78,
         public_contact="mailto:operator@example.invalid",
         removal_request_url="https://search.example.invalid/removal",
@@ -96,14 +91,9 @@ def test_index_stats_include_public_caps(tmp_path) -> None:
     assert stats["public_contact"] == "mailto:operator@example.invalid"
     assert stats["removal_request_url"] == "https://search.example.invalid/removal"
     assert stats["search_limit_cap"] == 12
-    assert stats["report_limit_cap"] == 34
-    assert stats["mention_limit_cap"] == 45
     assert stats["threadmark_limit_cap"] == 46
     assert stats["query_char_cap"] == 56
-    assert stats["mention_window_char_cap"] == 67
-    assert stats["snippet_budget_char_cap"] == 89
     assert stats["rate_limit_per_minute"] == 78
-    assert stats["chunk_results_enabled"] is False
     assert stats["artifact_manifest_validated"] is True
     assert stats["artifact_manifest_sha256"] == "m" * 64
     assert stats["artifact_database_sha256"] == "d" * 64
@@ -234,65 +224,16 @@ def test_app_html_exposes_contents_tab_without_fulltext_route() -> None:
     assert "hit-link" in APP_HTML
     assert "payload.threadmarks" in APP_HTML
     assert "/api/search" in APP_HTML
-    assert "/api/compare" not in APP_HTML
-    assert "/api/claim" not in APP_HTML
-    assert "/api/suggest" not in APP_HTML
-    assert "/api/terms" not in APP_HTML
-    assert "/api/explain" not in APP_HTML
-    assert "/api/mentions" not in APP_HTML
-    assert "/api/dossier" not in APP_HTML
-    assert "/api/report" not in APP_HTML
-    assert "/api/evidence-pack" not in APP_HTML
-    assert "/api/recap" not in APP_HTML
-    assert "/api/coverage" not in APP_HTML
-    assert 'id="suggestions"' not in APP_HTML
     assert 'id="query-tools"' not in APP_HTML
     assert 'id="public-notice"' not in APP_HTML
-    assert 'id="prefix-variants"' not in APP_HTML
     assert 'id="grouped"' not in APP_HTML
-    assert 'id="topic-sort"' not in APP_HTML
-    assert 'id="dossier-aliases"' not in APP_HTML
-    assert 'id="terms-link"' not in APP_HTML
-    assert 'id="explain-link"' not in APP_HTML
-    assert 'id="recap-link"' not in APP_HTML
-    assert 'id="report-link"' not in APP_HTML
-    assert 'id="dossier-link"' not in APP_HTML
-    assert 'id="evidence-pack-link"' not in APP_HTML
-    assert 'id="mentions-link"' not in APP_HTML
-    assert 'id="coverage-link"' not in APP_HTML
     assert 'id="clear-range"' not in APP_HTML
     assert 'id="share-link"' not in APP_HTML
-    assert "Topic order" not in APP_HTML
-    assert "Topic aliases" not in APP_HTML
     assert "Word variants" not in APP_HTML
     assert "One hit per threadmark" not in APP_HTML
-    assert "Claim check:" not in APP_HTML
-    assert "Timeline recap:" not in APP_HTML
-    assert "Proximity:" not in APP_HTML
-    assert "Dossier JSON" not in APP_HTML
-    assert "Report JSON" not in APP_HTML
-    assert "Evidence Pack JSON" not in APP_HTML
-    assert "Recap JSON" not in APP_HTML
-    assert "Mentions JSON" not in APP_HTML
-    assert "Coverage JSON" not in APP_HTML
-    assert "Compare JSON" not in APP_HTML
-    assert "Claim JSON" not in APP_HTML
     assert "uiStateParams" in APP_HTML
     assert 'params.set("view", "contents")' in APP_HTML
-    assert "compareParams" not in APP_HTML
-    assert "claimParams" not in APP_HTML
     assert "resultCountText" in APP_HTML
-    assert "claimSplitCandidate" not in APP_HTML
-    assert "questionLeadWords" not in APP_HTML
-    assert "claimFillerWords" not in APP_HTML
-    assert "cleanClaimToken" not in APP_HTML
-    assert "cleanTopicToken" not in APP_HTML
-    assert "cleanClaimPhrase" not in APP_HTML
-    assert "implicitClaimCandidate" not in APP_HTML
-    assert "loadClaimCheck" not in APP_HTML
-    assert "updateClaimLink" not in APP_HTML
-    assert "updateCompareLink" not in APP_HTML
-    assert "data-claim-topic" not in APP_HTML
     assert "All matching threadmarks" not in APP_HTML
     assert "prefix fallback" not in APP_HTML
     assert "matched with word variants" not in APP_HTML
@@ -493,71 +434,6 @@ def test_search_endpoint_groups_all_hits_by_threadmark(tmp_path) -> None:
         thread.join(timeout=5)
 
 
-def test_search_endpoint_ignores_alias_terms(tmp_path) -> None:
-    jsonl = tmp_path / "records.jsonl"
-    db = tmp_path / "records.sqlite"
-    write_jsonl(
-        [
-            Threadmark(
-                order=1,
-                category_id=1,
-                category_name="Threadmarks",
-                threadmark_id="1",
-                post_id="1",
-                title="Turn 1",
-                author="Blackstar",
-                published_at=None,
-                source_url="https://forums.sufficientvelocity.com/threads/example.1/#post-1",
-                reader_url="https://forums.sufficientvelocity.com/threads/example.1/reader/",
-                text="Cuba appears in the first turn.",
-                word_count=6,
-            ),
-            Threadmark(
-                order=2,
-                category_id=1,
-                category_name="Threadmarks",
-                threadmark_id="2",
-                post_id="2",
-                title="Turn 2",
-                author="Blackstar",
-                published_at=None,
-                source_url="https://forums.sufficientvelocity.com/threads/example.1/#post-2",
-                reader_url="https://forums.sufficientvelocity.com/threads/example.1/reader/",
-                text="Castro appears in the second turn.",
-                word_count=6,
-            ),
-        ],
-        jsonl,
-    )
-    build_index(jsonl, db)
-
-    class Handler(SearchHandler):
-        database_path = db
-        rate_limiter = None
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        conn = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
-        conn.request("GET", "/api/search?q=Cuba&alias=Castro&sort=timeline&limit=5")
-        response = conn.getresponse()
-        payload = json.loads(response.read().decode("utf-8"))
-
-        assert response.status == 200
-        assert "aliases" not in payload
-        assert "terms" not in payload
-        assert payload["total_threadmarks"] == 1
-        assert payload["total_chunks"] == 1
-        assert [item["threadmark_order"] for item in payload["results"]] == [1]
-        assert "body" not in payload["results"][0]
-        assert "snippet_html" in payload["results"][0]
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
-
-
 def test_search_endpoint_always_includes_word_variants(tmp_path) -> None:
     jsonl = tmp_path / "records.jsonl"
     db = tmp_path / "records.sqlite"
@@ -687,86 +563,6 @@ def test_search_endpoint_reports_totals_beyond_result_limit(tmp_path) -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=5)
-
-
-def test_removed_public_endpoints_return_404(tmp_path) -> None:
-    jsonl = tmp_path / "records.jsonl"
-    db = tmp_path / "records.sqlite"
-    write_jsonl(
-        [
-            Threadmark(
-                order=1,
-                category_id=1,
-                category_name="Threadmarks",
-                threadmark_id="1",
-                post_id="1",
-                title="Turn 1",
-                author="Blackstar",
-                published_at=None,
-                source_url="https://forums.sufficientvelocity.com/threads/example.1/#post-1",
-                reader_url="https://forums.sufficientvelocity.com/threads/example.1/reader/",
-                text="Cuba appears in the first turn.",
-                word_count=6,
-            ),
-        ],
-        jsonl,
-    )
-    build_index(jsonl, db)
-
-    class Handler(SearchHandler):
-        database_path = db
-        rate_limiter = None
-
-    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-    thread = Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        conn = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
-        for path in sorted(REMOVED_PUBLIC_API_PATHS):
-            conn.request("GET", f"{path}?q=Cuba")
-            response = conn.getresponse()
-            response.read()
-            assert response.status == 404, path
-    finally:
-        server.shutdown()
-        server.server_close()
-        thread.join(timeout=5)
-
-
-def test_suggest_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/suggest") is False
-
-
-def test_terms_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/terms") is False
-
-
-def test_explain_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/explain") is False
-
-
-def test_claim_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/claim") is False
-
-
-def test_dossier_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/dossier") is False
-
-
-def test_evidence_pack_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/evidence-pack") is False
-
-
-def test_recap_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/recap") is False
-
-
-def test_coverage_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/coverage") is False
-
-
-def test_compare_endpoint_is_public_rate_limited_path() -> None:
-    assert SearchHandler.is_public_api_path("/api/compare") is False
 
 
 def test_head_routes_public_api_without_body(tmp_path) -> None:

@@ -370,19 +370,10 @@ def artifact_item(path: Path, expected_threadmarks: int) -> AuditItem:
         and set(PUBLIC_API_ENDPOINTS).issubset(set(public_endpoints))
         and "/api/search" in public_endpoints
         and "/api/threadmarks" in public_endpoints
-        and "/api/dossier" not in public_endpoints
-        and "/api/evidence-pack" not in public_endpoints
-        and "/api/recap" not in public_endpoints
-        and "/api/coverage" not in public_endpoints
-        and "/api/compare" not in public_endpoints
-        and "/api/terms" not in public_endpoints
-        and "/api/explain" not in public_endpoints
-        and "/api/claim" not in public_endpoints
         and "/api/threadmark/{post_id}" not in public_endpoints
         and api_contract.get("grouped_search_endpoint_enabled") is True
         and api_contract.get("word_variants_always_enabled") is True
         and api_contract.get("private_fulltext_endpoint_public") is False
-        and api_contract.get("legacy_evidence_endpoints_public") is False
     )
     runtime_contract_ok = (
         isinstance(runtime_contract, dict)

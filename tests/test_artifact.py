@@ -87,12 +87,8 @@ def test_export_public_artifact_copies_db_and_writes_manifest(tmp_path: Path) ->
         expected_threadmarks=2,
         probes=("Cuba",),
         public_search_limit=12,
-        public_report_limit=34,
-        public_mention_limit=45,
         public_threadmark_limit=46,
         max_query_chars=56,
-        mention_window_chars=67,
-        public_snippet_budget_chars=89,
         public_rate_limit_per_minute=78,
         public_contact=PUBLIC_CONTACT,
         removal_request_url=REMOVAL_REQUEST_URL,
@@ -115,12 +111,8 @@ def test_export_public_artifact_copies_db_and_writes_manifest(tmp_path: Path) ->
     assert manifest["database"]["sha256"] == result.sha256
     assert manifest["public_server_defaults"]["private_fulltext"] is False
     assert manifest["public_server_defaults"]["public_search_limit"] == 12
-    assert manifest["public_server_defaults"]["public_report_limit"] == 34
-    assert manifest["public_server_defaults"]["public_mention_limit"] == 45
     assert manifest["public_server_defaults"]["public_threadmark_limit"] == 46
     assert manifest["public_server_defaults"]["max_query_chars"] == 56
-    assert manifest["public_server_defaults"]["mention_window_chars"] == 67
-    assert manifest["public_server_defaults"]["public_snippet_budget_chars"] == 89
     assert manifest["public_server_defaults"]["public_rate_limit_per_minute"] == 78
     assert manifest["content_handling"]["raw_html_included"] is False
     assert manifest["content_handling"]["jsonl_included"] is False
@@ -131,18 +123,9 @@ def test_export_public_artifact_copies_db_and_writes_manifest(tmp_path: Path) ->
     assert manifest["public_api_contract"]["public_endpoints"] == list(PUBLIC_API_ENDPOINTS)
     assert "/api/search" in manifest["public_api_contract"]["public_endpoints"]
     assert "/api/threadmarks" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/dossier" not in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/evidence-pack" not in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/recap" not in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/coverage" not in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/compare" not in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/terms" not in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/explain" not in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/claim" not in manifest["public_api_contract"]["public_endpoints"]
     assert manifest["public_api_contract"]["grouped_search_endpoint_enabled"] is True
     assert manifest["public_api_contract"]["word_variants_always_enabled"] is True
     assert manifest["public_api_contract"]["private_fulltext_endpoint_public"] is False
-    assert manifest["public_api_contract"]["legacy_evidence_endpoints_public"] is False
     assert manifest["deployment_runtime_contract"] == DEPLOYMENT_RUNTIME_CONTRACT
     assert manifest["permission_note"] == {"exists": False, "ok": False, "provided": False}
     readme = result.readme_path.read_text(encoding="utf-8")
@@ -152,7 +135,6 @@ def test_export_public_artifact_copies_db_and_writes_manifest(tmp_path: Path) ->
     assert "public-smoke" in readme
     assert "--require-artifact-manifest" in readme
     assert "artifact_manifest_validated: true" in readme
-    assert "--claim-pair Cuba communist" not in readme
     assert "audit --artifact-manifest" in readme
     assert "--public-base-url" in readme
     assert "source attribution" in readme
@@ -160,11 +142,6 @@ def test_export_public_artifact_copies_db_and_writes_manifest(tmp_path: Path) ->
     assert "THREAD_SEARCH_REMOVAL_REQUEST_URL" in readme
     assert "/api/search" in readme
     assert "/api/threadmarks" in readme
-    assert "/api/dossier" not in readme
-    assert "/api/coverage" not in readme
-    assert "/api/compare" not in readme
-    assert "/api/terms" not in readme
-    assert "/api/explain" not in readme
 
 
 def test_export_public_artifact_records_permission_note_hash(tmp_path: Path) -> None:

@@ -101,7 +101,6 @@ def test_render_author_review_packet_is_metadata_only(tmp_path: Path, monkeypatc
         probes=("Soviet", "Cuba"),
         artifact_manifest=manifest,
         deploy_bundle_manifest=bundle,
-        claim_pairs=(("Cuba", "communist"),),
     )
 
     assert "# Thread Search Author Review Packet" in rendered
@@ -114,11 +113,7 @@ def test_render_author_review_packet_is_metadata_only(tmp_path: Path, monkeypatc
     assert "Private artifact bundle SHA-256: `privateabc`" in rendered
     assert "Private artifact bundle handling: keep server-side only" in rendered
     assert rendered.count("[Search `Cuba`]") == 1
-    assert "[Search `communist`]" in rendered
-    assert "[Claim diagnostics JSON for `Cuba` / `communist`]" not in rendered
-    assert "/api/claim?q=Cuba&claim=communist" not in rendered
-    assert "/api/compare?q=Cuba&topic=communist" not in rendered
-    assert "/api/explain?q=Cuba+communist" not in rendered
+    assert "[Search `Soviet`]" in rendered
     assert "bbWrapper" not in rendered
     assert "First paragraph" not in rendered
     assert "chunks.body" not in rendered

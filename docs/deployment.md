@@ -163,28 +163,21 @@ Health and stats endpoints:
 
 `/healthz` validates that the SQLite index is readable and contains indexed threadmarks/chunks. It returns `503` when the database is missing, corrupt, or not ready. The Docker image uses this endpoint for its container healthcheck.
 
-Public search returns source-linked hits grouped by the threadmark where each hit appears. Threadmark groups are ordered chronologically from oldest to newest, and every hit in each matching threadmark is returned. Word variants are always enabled, so searches such as `Cuba` can surface `Cuban` without a separate UI/API toggle. Public search accepts only the query text, all-words/any-words mode, and optional `from`/`to` threadmark-order filters; aliases, custom sort order, one-hit grouping, explicit prefix toggles, and evidence JSON endpoints are not part of the public surface. `/api/stats` includes the source reader URL, source host, public access mode, and thread picker options; the web UI exposes a fuzzy thread picker seeded from the current Sufficient Velocity reader.
+Public search returns source-linked hits grouped by the threadmark where each hit appears. Threadmark groups are ordered chronologically from oldest to newest, and every hit in each matching threadmark is returned. Word variants are always enabled, so searches such as `Cuba` can surface `Cuban` without a separate UI/API toggle. Public search accepts only the query text, all-words/any-words mode, and optional `from`/`to` threadmark-order filters. `/api/stats` includes the source reader URL, source host, public access mode, and thread picker options; the web UI exposes a fuzzy thread picker seeded from the current Sufficient Velocity reader.
 
 Public API caps are enforced server-side:
 
 - Threadmark metadata rows default to at most `300`.
 - Query strings default to at most `120` normalized characters.
-- Mention windows default to at most `320` characters before boundary adjustment.
-- Public snippet-bearing responses default to at most `6000` raw snippet characters total.
 - Public API routes default to at most `60` requests per client IP per minute.
-- Chunk-level duplicate hits are disabled unless the operator starts the server with `--allow-public-chunk-results`.
 
-Tune these with `--public-search-limit`, `--public-report-limit`, `--public-mention-limit`, `--public-threadmark-limit`, `--max-query-chars`, `--mention-window-chars`, `--public-snippet-budget-chars`, and `--public-rate-limit-per-minute`.
+Tune these with `--public-search-limit`, `--public-threadmark-limit`, `--max-query-chars`, and `--public-rate-limit-per-minute`.
 
 For non-loopback serving and exported public artifacts, the CLI and artifact exporter reject disabled or unusually high public caps by default:
 
 - Search limit: `1` to `100`
-- Report limit: `1` to `300`
-- Mention limit: `1` to `200`
 - Threadmark metadata limit: `1` to `500`
 - Query length: `1` to `240` characters
-- Mention window: `1` to `600` characters
-- Public snippet budget: `1` to `20000` raw snippet characters per response
 - Public API rate limit: `1` to `600` requests per client IP per minute
 
 Use `--allow-unsafe-public-caps` only for a deliberate private-network or separately rate-limited deployment decision.

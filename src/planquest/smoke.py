@@ -40,7 +40,6 @@ class SmokeReport:
         }
 
 
-ClaimPair = tuple[str, str]
 PRIVATE_DOWNLOAD_PATHS = (
     "/thread-search.sqlite",
     "/data/thread-search.sqlite",
@@ -57,7 +56,6 @@ def run_public_smoke(
     base_url: str,
     probes: tuple[str, ...],
     timeout: float = 5.0,
-    claim_pairs: tuple[ClaimPair, ...] = (),
     require_artifact_manifest: bool = False,
 ) -> SmokeReport:
     normalized_base = normalize_base_url(base_url)
@@ -69,7 +67,6 @@ def run_public_smoke(
     ]
     search_items, first_post_id = probe_items(normalized_base, probes=probes, timeout=timeout)
     items.extend(search_items)
-    items.extend(claim_pair_items(normalized_base, claim_pairs=claim_pairs, timeout=timeout))
     items.append(private_threadmark_item(normalized_base, first_post_id=first_post_id, timeout=timeout))
     items.append(private_downloads_item(normalized_base, timeout=timeout))
     return SmokeReport(
@@ -103,11 +100,6 @@ def html_shell_item(base_url: str, timeout: float) -> SmokeItem:
         for token in (
             'id="prefix-variants"',
             'id="topic-sort"',
-            "Topic aliases",
-            "Terms JSON",
-            "Explain JSON",
-            "Recap JSON",
-            "Dossier JSON",
             "All matching threadmarks",
         )
     )
@@ -177,7 +169,6 @@ def stats_item(base_url: str, timeout: float, require_artifact_manifest: bool = 
         and payload.get("ok") is True
         and payload.get("public_access_mode") == "source_linked_search"
         and payload.get("private_fulltext") is False
-        and payload.get("chunk_results_enabled") is False
         and bool(payload.get("source_reader_url"))
         and not contact_errors
         and manifest_ok
@@ -193,7 +184,6 @@ def stats_item(base_url: str, timeout: float, require_artifact_manifest: bool = 
             "ok": payload.get("ok"),
             "public_access_mode": payload.get("public_access_mode"),
             "private_fulltext": payload.get("private_fulltext"),
-            "chunk_results_enabled": payload.get("chunk_results_enabled"),
             "source_reader_url": payload.get("source_reader_url"),
             "public_contact": payload.get("public_contact"),
             "removal_request_url": payload.get("removal_request_url"),
@@ -255,11 +245,6 @@ def probe_search_item(base_url: str, probe: str, timeout: float) -> SmokeItem:
             "first_source_url": first.get("source_url"),
         },
     )
-
-
-
-def claim_pair_items(base_url: str, claim_pairs: tuple[ClaimPair, ...], timeout: float) -> list[SmokeItem]:
-    return []
 
 def private_threadmark_item(base_url: str, first_post_id: str | None, timeout: float) -> SmokeItem:
     post_id = first_post_id or "0"

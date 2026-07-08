@@ -7,12 +7,8 @@ from urllib.parse import urlparse
 
 PUBLIC_CAP_LIMITS = {
     "public_search_limit": (1, 100),
-    "public_report_limit": (1, 300),
-    "public_mention_limit": (1, 200),
     "public_threadmark_limit": (1, 500),
     "max_query_chars": (1, 240),
-    "mention_window_chars": (1, 600),
-    "public_snippet_budget_chars": (1, 20000),
     "public_rate_limit_per_minute": (1, 600),
 }
 PLACEHOLDER_CONTACT_MARKERS = (

@@ -25,22 +25,8 @@ from .search import (
 
 
 NON_HTML_CSP = "default-src 'none'; base-uri 'none'; frame-ancestors 'none'"
-DEFAULT_PUBLIC_SNIPPET_BUDGET_CHARS = 6000
 THREAD_TITLE_OVERRIDES = {
     "attempting-to-fulfill-the-plan-mnkh-edition.73217": "Attempting to Fulfill the Plan MNKh Edition",
-}
-REMOVED_PUBLIC_API_PATHS = {
-    "/api/suggest",
-    "/api/terms",
-    "/api/explain",
-    "/api/report",
-    "/api/mentions",
-    "/api/dossier",
-    "/api/evidence-pack",
-    "/api/recap",
-    "/api/coverage",
-    "/api/compare",
-    "/api/claim",
 }
 
 
@@ -69,14 +55,9 @@ def serve(
     port: int,
     private_fulltext: bool = False,
     public_search_limit: int = 30,
-    public_report_limit: int = 100,
-    public_mention_limit: int = 50,
     public_threadmark_limit: int = 300,
     max_query_chars: int = 120,
-    mention_window_chars: int = 320,
-    public_snippet_budget_chars: int = DEFAULT_PUBLIC_SNIPPET_BUDGET_CHARS,
     public_rate_limit_per_minute: int = 60,
-    allow_public_chunk_results: bool = False,
     public_contact: str = "",
     removal_request_url: str = "",
     artifact_manifest_validated: bool = False,
@@ -88,14 +69,9 @@ def serve(
         database_path = db_path
         allow_private_fulltext = private_fulltext
         search_limit_cap = public_search_limit
-        report_limit_cap = public_report_limit
-        mention_limit_cap = public_mention_limit
         threadmark_limit_cap = public_threadmark_limit
         query_char_cap = max_query_chars
-        mention_window_char_cap = mention_window_chars
-        snippet_budget_char_cap = public_snippet_budget_chars
         rate_limiter = SlidingWindowRateLimiter(public_rate_limit_per_minute, 60.0)
-        allow_chunk_results = private_fulltext or allow_public_chunk_results
         public_contact_value = public_contact
         removal_request_url_value = removal_request_url
         artifact_manifest_validated_value = artifact_manifest_validated
@@ -117,14 +93,9 @@ class SearchHandler(BaseHTTPRequestHandler):
     database_path: Path
     allow_private_fulltext = False
     search_limit_cap = 30
-    report_limit_cap = 100
-    mention_limit_cap = 50
     threadmark_limit_cap = 300
     query_char_cap = 120
-    mention_window_char_cap = 320
-    snippet_budget_char_cap = DEFAULT_PUBLIC_SNIPPET_BUDGET_CHARS
     rate_limiter: SlidingWindowRateLimiter | None = None
-    allow_chunk_results = False
     public_contact_value = ""
     removal_request_url_value = ""
     artifact_manifest_validated_value = False
@@ -156,14 +127,9 @@ class SearchHandler(BaseHTTPRequestHandler):
                     self.database_path,
                     self.allow_private_fulltext,
                     self.search_limit_cap,
-                    self.report_limit_cap,
-                    self.mention_limit_cap,
                     self.threadmark_limit_cap,
                     self.query_char_cap,
-                    self.mention_window_char_cap,
-                    self.snippet_budget_char_cap,
                     self.rate_limiter.limit if self.rate_limiter else 0,
-                    self.allow_chunk_results,
                     public_contact=self.public_contact_value,
                     removal_request_url=self.removal_request_url_value,
                     artifact_manifest_validated=self.artifact_manifest_validated_value,
@@ -175,9 +141,6 @@ class SearchHandler(BaseHTTPRequestHandler):
             )
             return
         if self.is_public_api_path(parsed.path) and not self.check_rate_limit(head_only=head_only):
-            return
-        if parsed.path in REMOVED_PUBLIC_API_PATHS:
-            self.send_error(404)
             return
         if parsed.path == "/api/threadmarks":
             params = parse_qs(parsed.query)
@@ -377,14 +340,9 @@ def index_stats(
     db_path: Path,
     private_fulltext: bool = False,
     search_limit_cap: int = 30,
-    report_limit_cap: int = 100,
-    mention_limit_cap: int = 50,
     threadmark_limit_cap: int = 300,
     query_char_cap: int = 120,
-    mention_window_char_cap: int = 320,
-    snippet_budget_char_cap: int = DEFAULT_PUBLIC_SNIPPET_BUDGET_CHARS,
     rate_limit_per_minute: int = 60,
-    allow_chunk_results: bool = False,
     source_reader_url: str = TARGET_READER_URL,
     public_contact: str = "",
     removal_request_url: str = "",
@@ -431,14 +389,9 @@ def index_stats(
         "words": words,
         "private_fulltext": private_fulltext,
         "search_limit_cap": search_limit_cap,
-        "report_limit_cap": report_limit_cap,
-        "mention_limit_cap": mention_limit_cap,
         "threadmark_limit_cap": threadmark_limit_cap,
         "query_char_cap": query_char_cap,
-        "mention_window_char_cap": mention_window_char_cap,
-        "snippet_budget_char_cap": snippet_budget_char_cap,
         "rate_limit_per_minute": rate_limit_per_minute,
-        "chunk_results_enabled": allow_chunk_results,
     }
 
 

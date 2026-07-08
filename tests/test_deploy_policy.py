@@ -4,12 +4,8 @@ from planquest.deploy_policy import public_cap_errors, public_contact_errors
 def valid_caps() -> dict[str, int]:
     return {
         "public_search_limit": 30,
-        "public_report_limit": 100,
-        "public_mention_limit": 50,
         "public_threadmark_limit": 300,
         "max_query_chars": 120,
-        "mention_window_chars": 320,
-        "public_snippet_budget_chars": 6000,
         "public_rate_limit_per_minute": 60,
     }
 

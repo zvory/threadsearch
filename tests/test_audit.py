@@ -103,12 +103,8 @@ def public_defaults(**overrides: object) -> dict[str, object]:
     defaults: dict[str, object] = {
         "private_fulltext": False,
         "public_search_limit": 30,
-        "public_report_limit": 100,
-        "public_mention_limit": 50,
         "public_threadmark_limit": 300,
         "max_query_chars": 120,
-        "mention_window_chars": 320,
-        "public_snippet_budget_chars": 6000,
         "public_rate_limit_per_minute": 60,
     }
     defaults.update(overrides)
@@ -134,7 +130,6 @@ def api_contract(**overrides: object) -> dict[str, object]:
         "grouped_search_endpoint_enabled": True,
         "word_variants_always_enabled": True,
         "private_fulltext_endpoint_public": False,
-        "legacy_evidence_endpoints_public": False,
     }
     contract.update(overrides)
     return contract
@@ -629,49 +624,6 @@ def test_evaluate_audit_rejects_missing_public_source_attribution(tmp_path: Path
     assert artifact_item.evidence["content_handling"]["public_ui_source_attribution"] is False
 
 
-def test_evaluate_audit_rejects_legacy_public_endpoint_contract(tmp_path: Path) -> None:
-    note = write_valid_permission_note(tmp_path)
-    legacy_endpoints = list(PUBLIC_API_ENDPOINTS) + ["/api/dossier", "/api/explain", "/api/claim"]
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "artifact": "thread-search-public-search-backend",
-                "public_contact": PUBLIC_CONTACT,
-                "removal_request_url": REMOVAL_REQUEST_URL,
-                "database": artifact_database(tmp_path),
-                "index": {"threadmarks": 2},
-                "validation": {"ok": True},
-                "public_server_defaults": public_defaults(),
-                "content_handling": content_handling(),
-                "public_api_contract": api_contract(
-                    public_endpoints=legacy_endpoints,
-                    legacy_evidence_endpoints_public=True,
-                ),
-                "deployment_runtime_contract": deployment_runtime_contract(),
-                "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    report = evaluate_audit(
-        payload(threadmarks=2, expected=2),
-        expected_threadmarks=2,
-        expected_category=1,
-        excluded_categories=(4, 5),
-        probes=("Cuba",),
-        artifact_manifest=manifest,
-        permission_note=note,
-    )
-
-    artifact_item = next(item for item in report.items if item.key == "artifact_manifest")
-    assert report.ok is False
-    assert artifact_item.status == "fail"
-    assert artifact_item.evidence["public_api_contract_ok"] is False
-    assert artifact_item.evidence["public_api_contract"]["legacy_evidence_endpoints_public"] is True
-
-
 def test_evaluate_audit_requires_grouped_search_contract(tmp_path: Path) -> None:
     note = write_valid_permission_note(tmp_path)
     manifest = tmp_path / "manifest.json"
@@ -764,7 +716,7 @@ def test_evaluate_audit_requires_deployment_runtime_contract(tmp_path: Path) -> 
                 "content_handling": content_handling(),
                 "public_api_contract": api_contract(),
                 "deployment_runtime_contract": deployment_runtime_contract(
-                    public_chunk_results_allowed=True,
+                    public_private_fulltext_allowed=True,
                 ),
                 "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
             }

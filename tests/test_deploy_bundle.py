@@ -48,14 +48,9 @@ def write_valid_artifact(artifact_dir: Path, expected_threadmarks: int = 269) ->
         "validation": {"ok": True},
         "public_server_defaults": {
             "private_fulltext": False,
-            "allow_public_chunk_results": False,
             "public_search_limit": 30,
-            "public_report_limit": 100,
-            "public_mention_limit": 50,
             "public_threadmark_limit": 300,
             "max_query_chars": 120,
-            "mention_window_chars": 320,
-            "public_snippet_budget_chars": 6000,
             "public_rate_limit_per_minute": 60,
         },
         "content_handling": {
@@ -71,7 +66,6 @@ def write_valid_artifact(artifact_dir: Path, expected_threadmarks: int = 269) ->
             "grouped_search_endpoint_enabled": True,
             "word_variants_always_enabled": True,
             "private_fulltext_endpoint_public": False,
-            "legacy_evidence_endpoints_public": False,
         },
         "deployment_runtime_contract": dict(DEPLOYMENT_RUNTIME_CONTRACT),
         "permission_note": {"ok": True, "sha256": "abc"},

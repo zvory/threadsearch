@@ -61,7 +61,6 @@ def test_public_smoke_passes_public_snippet_server(tmp_path: Path) -> None:
             f"http://127.0.0.1:{server.server_port}",
             probes=("Cuba", "Soviet"),
             timeout=5,
-            claim_pairs=(("Cuba", "communist"),),
         )
 
         assert report.ok is True
@@ -256,7 +255,6 @@ def test_public_smoke_fails_private_fulltext_server(tmp_path: Path) -> None:
     class Handler(SearchHandler):
         database_path = db
         allow_private_fulltext = True
-        allow_chunk_results = True
         rate_limiter = None
         public_contact_value = PUBLIC_CONTACT
         removal_request_url_value = REMOVAL_REQUEST_URL

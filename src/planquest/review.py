@@ -10,9 +10,6 @@ from .deploy_bundle import BUNDLE_MANIFEST_NAME, DEFAULT_BUNDLE_DIR, verify_depl
 from .permission import permission_note_summary
 
 
-DEFAULT_DEMO_CLAIM_PAIRS: tuple[tuple[str, str], ...] = ()
-
-
 def render_author_review_packet(
     payload: dict[str, Any],
     *,
@@ -21,7 +18,6 @@ def render_author_review_packet(
     artifact_manifest: Path | None = None,
     permission_note: Path | None = None,
     deploy_bundle_manifest: Path | None = DEFAULT_BUNDLE_DIR / BUNDLE_MANIFEST_NAME,
-    claim_pairs: tuple[tuple[str, str], ...] = DEFAULT_DEMO_CLAIM_PAIRS,
 ) -> str:
     crawl = payload["crawl"]
     corpus = payload["corpus"]
@@ -109,9 +105,6 @@ def render_author_review_packet(
     seen_search_terms: set[str] = set()
     for probe in probes:
         append_search_link(lines, base_url, probe, seen_search_terms)
-    for topic, claim in claim_pairs:
-        append_search_link(lines, base_url, topic, seen_search_terms)
-        append_search_link(lines, base_url, claim, seen_search_terms)
 
     lines.extend(
         [

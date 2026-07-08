@@ -194,12 +194,6 @@ def test_permission_request_template_describes_snippet_only_scope() -> None:
     assert "operator@example.invalid" in template
     assert "Public source-linked search hits grouped by the threadmark" in template
     assert "Search over the main thread text with source links" in template
-    assert "Metadata-only topic comparison views" not in template
-    assert "Metadata-only indexed-term browsing" not in template
-    assert "Metadata-only query explanation views" not in template
-    assert "Bounded topic dossiers, evidence packs, recap views, and claim checks" not in template
-    assert "metadata-only term/comparison caps" not in template
-    assert "term, coverage, comparison, bounded topic, recap, evidence-pack, and claim diagnostics" not in template
     assert "No public full-text threadmark pages" in template
     assert "No hosted LLM or embedding API calls with the thread text" in template
     assert "Main Threadmarks only; Sidestory and Apocrypha excluded" in template

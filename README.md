@@ -161,23 +161,11 @@ Use `preview-stop` when the review window closes. See [docs/deployment.md](docs/
 .venv/bin/thread-search search Cuba
 .venv/bin/thread-search search Cuba --format json
 .venv/bin/thread-search search Cuba --sort timeline
-.venv/bin/thread-search search Cuba --prefix-variants --sort timeline
-.venv/bin/thread-search search Cuba --alias Castro --sort timeline
 ```
 
-The CLI keeps local options for deeper inspection. The public web UI/API is deliberately simpler: it accepts search text, optional threadmark range, and all-words/any-words mode, always includes word variants such as `Cuba`/`Cuban`, and returns every matching hit grouped under its source threadmark in chronological order. Public search ignores aliases, custom sorting, one-hit grouping, and explicit prefix toggles.
+The CLI search command is a direct SQLite FTS lookup. It supports all-words/any-words mode, optional threadmark-order range filters, grouped or per-chunk results, and relevance or timeline sorting. Exact matching is tried first; when a simple word has no exact hit, search falls back to a word-prefix FTS query such as `Cuba` -> `Cuban`.
 
-For indexed-term suggestions:
-
-```sh
-.venv/bin/thread-search suggest Cub
-.venv/bin/thread-search suggest Cubaa
-.venv/bin/thread-search terms --prefix Cub
-.venv/bin/thread-search terms --limit 100 --min-chunks 3
-.venv/bin/thread-search explain Cuba
-```
-
-These are local CLI diagnostics only. They are not exposed by the public web/API surface.
+The public web UI/API is intentionally narrower: it accepts search text, optional threadmark range, and all-words/any-words mode, always includes word variants such as `Cuba`/`Cuban`, and returns every matching hit grouped under its source threadmark in chronological order.
 
 For a metadata-only table of contents:
 
@@ -185,92 +173,7 @@ For a metadata-only table of contents:
 .venv/bin/thread-search toc
 ```
 
-For local retrieval context:
-
-```sh
-.venv/bin/thread-search context Cuba --limit 8
-```
-
-For a coverage report across threadmarks:
-
-```sh
-.venv/bin/thread-search report Cuba
-.venv/bin/thread-search report Cuba --sort timeline
-.venv/bin/thread-search report Cuba --alias Castro --sort timeline
-```
-
-Use `--alias` to merge alternate names into the same bounded threadmark report. Reports include source-linked snippets and aggregate hit counts without exposing full text.
-
-For metadata-only threadmark coverage without snippets:
-
-```sh
-.venv/bin/thread-search coverage Cuba
-.venv/bin/thread-search coverage Cuba --alias Castro --format json
-.venv/bin/thread-search coverage Soviet --bucket-size 25
-```
-
-For metadata-only topic comparison and overlap counts:
-
-```sh
-.venv/bin/thread-search compare Cuba communist
-.venv/bin/thread-search compare Cuba communist Soviet --format json
-```
-
-`compare` returns per-topic coverage totals, first/last matching threadmarks, timeline buckets, and source-linked overlap titles without snippets or full text.
-
-For source-linked mention windows:
-
-```sh
-.venv/bin/thread-search mentions Cuba
-.venv/bin/thread-search mentions Cuba --sort timeline
-.venv/bin/thread-search mentions Cuba --alias Castro --sort timeline
-```
-
-For a bounded topic dossier that combines coverage and mention windows:
-
-```sh
-.venv/bin/thread-search dossier Cuba
-.venv/bin/thread-search dossier Cuba --format json
-.venv/bin/thread-search dossier Cuba --alias Castro --format json
-```
-
-`dossier` is the easiest local RAG handoff shape: it contains source-linked snippets and metadata, not full threadmark bodies.
-Use `--alias` for known alternate names or nearby terms that should be bundled into the same topic dossier, mention-window review, or topic-side claim check. Use `--prefix-variants` when word-prefix variants should be included across the dossier and optional claim checks.
-The public web UI does not render dossiers, recaps, aliases, term indexes, explain views, or JSON evidence links. It only renders search hits grouped by threadmark, plus the contents view.
-
-For one local note or local-only RAG prompt that combines a topic dossier with claim checks:
-
-```sh
-.venv/bin/thread-search evidence-pack Cuba --claim communist --out data/cuba-evidence-pack.md
-.venv/bin/thread-search evidence-pack Cuba --alias Castro --claim communist --format json
-.venv/bin/thread-search evidence-pack "did Cuba turn communist" --format json
-```
-
-`evidence-pack` is bounded retrieval, not a generated answer. It combines the dossier fields with optional claim checks so the Cuba/communist question can be reviewed from one source-linked file.
-
-For a compact extractive topic recap in timeline order:
-
-```sh
-.venv/bin/thread-search recap Cuba --claim communist
-.venv/bin/thread-search recap Cuba --alias Castro --claim communist --format json
-.venv/bin/thread-search recap "did Cuba turn communist" --format json
-```
-
-`recap` is a reader-facing version of the same bounded evidence: timeline snippets, mention windows, and optional claim diagnostics. It does not generate a factual answer or include full threadmark bodies; use the source links to verify conclusions.
-
-For a source-linked fact-check shape:
-
-```sh
-.venv/bin/thread-search claim Cuba communist
-.venv/bin/thread-search claim Cuba communist --alias Castro
-.venv/bin/thread-search claim "did Cuba turn communist"
-```
-
-`claim` classifies the query pair as same-chunk overlap, adjacent-chunk overlap, same-threadmark-only overlap, no overlap, or missing terms, with evidence snippet counts shown separately from total overlap counts. Topic aliases expand the first query only; JSON output shows per-term match diagnostics, exact primary-query counts, proximity/chunk-distance notes for each evidence row, lexical negation-cue counts near highlighted claim terms, and compact caution codes for prefix-expanded, prefix-only topic, weak-proximity, missing-side, no-overlap, or negated evidence. It is deterministic search evidence, not an LLM truth verdict.
-
-See [docs/local-rag.md](docs/local-rag.md) for the local RAG workflow and semantic-search guardrails.
-
-Corpus note: in the complete main-threadmark corpus crawled on July 8, 2026, exact `Cuba` has no hits. Normal search falls back to prefix matching and can surface `Cuban`, with the fallback labeled in the public UI/API; nearby exact terms found locally also include `Castro`. Use `Soviet` as the launch-readiness probe because it is a stable exact hit.
+Corpus note: in the complete main-threadmark corpus crawled on July 8, 2026, exact `Cuba` has no hits. Normal search falls back to prefix matching and can surface `Cuban`, with the fallback labeled in the public UI/API. Use `Soviet` as the launch-readiness probe because it is a stable exact hit.
 
 ## Local Web UI
 

@@ -26,7 +26,6 @@ def create_schema(conn: sqlite3.Connection) -> None:
         DROP TABLE IF EXISTS metadata;
         DROP TABLE IF EXISTS threadmarks;
         DROP TABLE IF EXISTS chunks;
-        DROP TABLE IF EXISTS terms_vocab;
         DROP TABLE IF EXISTS chunks_fts;
 
         CREATE TABLE metadata (
@@ -70,7 +69,6 @@ def create_schema(conn: sqlite3.Connection) -> None:
             tokenize='porter unicode61'
         );
 
-        CREATE VIRTUAL TABLE terms_vocab USING fts5vocab(chunks_fts, 'row');
         """
     )
 

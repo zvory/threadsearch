@@ -107,7 +107,6 @@ def test_render_runbook_includes_current_state_and_next_command() -> None:
     assert ".venv/bin/thread-search preview-status --smoke --probe Cuba" in rendered
     assert ".venv/bin/thread-search preview-stop" in rendered
     assert "default 60 requests/minute per-IP limiter" in rendered
-    assert "--claim-pair Cuba communist" not in rendered
     assert (
         ".venv/bin/thread-search audit --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json "
         "--public-base-url http://127.0.0.1:8765"
