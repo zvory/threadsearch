@@ -590,14 +590,17 @@ def text_fragment_directive(snippet: str) -> str:
     prefix = normalize_text_fragment_part(fragment_context_before(text, target_start))
     suffix = normalize_text_fragment_part(fragment_context_after(text, target_end))
 
-    encoded_target = quote(target, safe="")
-    if prefix and suffix:
-        return f"text={quote(prefix, safe='')}-,{encoded_target},-{quote(suffix, safe='')}"
+    encoded_target = quote_text_fragment_part(target)
     if prefix:
-        return f"text={quote(prefix, safe='')}-,{encoded_target}"
+        return f"text={quote_text_fragment_part(prefix)}-,{encoded_target}"
     if suffix:
-        return f"text={encoded_target},-{quote(suffix, safe='')}"
+        return f"text={encoded_target},-{quote_text_fragment_part(suffix)}"
     return f"text={encoded_target}"
+
+
+def quote_text_fragment_part(value: str) -> str:
+    # Text-fragment syntax uses ASCII dashes as delimiters, so quote them too.
+    return quote(value, safe="").replace("-", "%2D")
 
 
 def first_marked_span(value: str) -> tuple[str, int, int]:

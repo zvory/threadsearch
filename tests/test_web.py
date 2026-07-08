@@ -156,7 +156,13 @@ def test_thread_metadata_is_derived_from_reader_url() -> None:
 def test_text_fragment_directive_targets_first_marked_span_with_context() -> None:
     snippet = "earlier omitted ... before the \x01Cuba\x02 mention after it ... later omitted"
 
-    assert text_fragment_directive(snippet) == "text=before%20the-,Cuba,-mention%20after%20it"
+    assert text_fragment_directive(snippet) == "text=before%20the-,Cuba"
+
+
+def test_text_fragment_directive_escapes_ascii_dashes() -> None:
+    snippet = "pre-war Nikolai \x01Voznesensky\x02 supported the plan"
+
+    assert text_fragment_directive(snippet) == "text=pre%2Dwar%20Nikolai-,Voznesensky"
 
 
 def test_highlighted_source_url_preserves_post_anchor() -> None:
@@ -165,7 +171,7 @@ def test_highlighted_source_url_preserves_post_anchor() -> None:
 
     assert (
         highlighted_source_url(source_url, snippet)
-        == "https://forums.sufficientvelocity.com/threads/example.1/#post-123:~:text=before%20the-,Cuba,-mention%20after%20it"
+        == "https://forums.sufficientvelocity.com/threads/example.1/#post-123:~:text=before%20the-,Cuba"
     )
 
 
