@@ -132,7 +132,7 @@ From a clean deployment checkout:
 
 ```sh
 git checkout master
-THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh
+THREAD_SEARCH_PUBLIC_BASE_URL=https://threadsearch.fly.dev deploy/master-deploy.sh
 ```
 
 The wrapper refuses to deploy unless the checkout is on `master`, the working tree is clean, and the local `master` can be fast-forwarded to exactly `origin/master`. It then creates or reuses `.venv`, installs the package with dev dependencies, runs `pytest -q`, requires `dist/thread-search-public/thread-search.sqlite`, `manifest.json`, and `README.deploy.txt`, refreshes the upload bundles, runs `deploy-bundle-check`, deploys with `flyctl deploy --remote-only`, and writes a local receipt under `data/deployments/`.
@@ -140,7 +140,7 @@ The wrapper refuses to deploy unless the checkout is on `master`, the working tr
 Set `THREAD_SEARCH_PUBLIC_BASE_URL` to run the live `public-smoke` check after Fly reports a successful deploy. Leave it unset only when the target URL is not yet reachable. You can pass additional Fly deploy flags after the script name, for example:
 
 ```sh
-THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh --strategy rolling
+THREAD_SEARCH_PUBLIC_BASE_URL=https://threadsearch.fly.dev deploy/master-deploy.sh --strategy rolling
 ```
 
 The script assumes Fly credentials are already available through `flyctl auth login` or `FLY_API_TOKEN`. If CI deployment becomes required later, first move the private artifact into a protected runtime storage path or another secure artifact source; do not commit `data/` or the private SQLite artifact to make CI builds work.

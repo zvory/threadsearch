@@ -58,7 +58,7 @@ Guidance for working in this repo.
 - After tests pass in the worktree, integrate the tested commit directly to trunk/default branch.
 - After integrating to `master`, ensure `master` is pushed or fast-forwarded to exactly
   `origin/master`, then trigger the local deploy from a clean `master` checkout with
-  `THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh`.
+  `THREAD_SEARCH_PUBLIC_BASE_URL=https://threadsearch.fly.dev deploy/master-deploy.sh`.
 - Commit messages should be detailed. Use a clear subject and include a body when the change has
   user-facing impact, contract changes, testing nuance, or non-obvious reasoning.
 - If a local hook or test fails, fix the staged diff instead of bypassing the failure unless the

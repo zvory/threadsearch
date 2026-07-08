@@ -10,7 +10,8 @@ def test_agent_guidance_requires_master_deploy_after_integration() -> None:
 
         assert "After integrating to `master`" in guidance
         assert "origin/master" in guidance
-        assert "THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh" in guidance
+        assert "THREAD_SEARCH_PUBLIC_BASE_URL=https://threadsearch.fly.dev deploy/master-deploy.sh" in guidance
+        assert ("planquest" + "-search.net") not in guidance
 
 
 def test_compose_mounts_artifact_privately_and_readonly() -> None:

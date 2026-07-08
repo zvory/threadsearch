@@ -244,7 +244,7 @@ The app tarball excludes `data/` and `dist/`. The private artifact tarball conta
 To deploy the exact current `master` commit from the machine that holds the private artifact, run:
 
 ```sh
-THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh
+THREAD_SEARCH_PUBLIC_BASE_URL=https://threadsearch.fly.dev deploy/master-deploy.sh
 ```
 
 The deploy wrapper refuses dirty trees and non-`master` branches, fast-forwards from `origin/master`, creates or reuses `.venv`, runs the public-safe tests, refreshes and verifies deploy bundles, deploys with Fly.io, and runs live `public-smoke` when `THREAD_SEARCH_PUBLIC_BASE_URL` is set.

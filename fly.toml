@@ -5,8 +5,8 @@ primary_region = "iad"
   dockerfile = "Dockerfile"
 
 [env]
-  THREAD_SEARCH_PUBLIC_CONTACT = "mailto:operator@planquest-search.net"
-  THREAD_SEARCH_REMOVAL_REQUEST_URL = "https://planquest-search.net/removal"
+  THREAD_SEARCH_PUBLIC_CONTACT = "https://github.com/zvory/threadsearch/issues"
+  THREAD_SEARCH_REMOVAL_REQUEST_URL = "https://github.com/zvory/threadsearch/issues"
 
 [http_service]
   internal_port = 8765
