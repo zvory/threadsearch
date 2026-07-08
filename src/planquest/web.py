@@ -396,10 +396,22 @@ def index_stats(
             words = int(conn.execute("SELECT COALESCE(SUM(word_count), 0) FROM threadmarks").fetchone()[0])
     except sqlite3.Error as exc:
         return {"ok": False, "error": str(exc)}
+    source_host = urlparse(source_reader_url).netloc
+    threads = [
+        {
+            "id": thread_id_from_reader_url(source_reader_url),
+            "title": thread_title_from_reader_url(source_reader_url),
+            "reader_url": source_reader_url,
+            "source_host": source_host,
+            "threadmarks": threadmarks,
+            "words": words,
+        }
+    ]
     return {
         "ok": True,
         "source_reader_url": source_reader_url,
-        "source_host": urlparse(source_reader_url).netloc,
+        "source_host": source_host,
+        "threads": threads,
         "public_access_mode": "source_linked_search",
         "public_notice": "Search results link back to their source threadmarks.",
         "public_contact": public_contact,
@@ -422,6 +434,38 @@ def index_stats(
         "rate_limit_per_minute": rate_limit_per_minute,
         "chunk_results_enabled": allow_chunk_results,
     }
+
+
+def thread_id_from_reader_url(source_reader_url: str) -> str:
+    slug = thread_slug_from_reader_url(source_reader_url)
+    if slug:
+        return slug
+    parsed = urlparse(source_reader_url)
+    return parsed.netloc or "default"
+
+
+def thread_title_from_reader_url(source_reader_url: str) -> str:
+    slug = thread_slug_from_reader_url(source_reader_url)
+    parsed = urlparse(source_reader_url)
+    if not slug:
+        return parsed.netloc or "Thread"
+    title_slug = slug
+    parts = slug.rsplit(".", 1)
+    if len(parts) == 2 and parts[1].isdigit():
+        title_slug = parts[0]
+    title = " ".join(word.capitalize() for word in title_slug.replace("-", " ").replace("_", " ").split())
+    return title or parsed.netloc or "Thread"
+
+
+def thread_slug_from_reader_url(source_reader_url: str) -> str:
+    parts = [part for part in urlparse(source_reader_url).path.split("/") if part]
+    try:
+        threads_index = parts.index("threads")
+    except ValueError:
+        return ""
+    if threads_index + 1 >= len(parts):
+        return ""
+    return parts[threads_index + 1]
 
 
 def health_payload(db_path: Path) -> dict[str, object]:
@@ -558,16 +602,111 @@ APP_HTML = """<!doctype html>
     }
     .title-block {
       display: grid;
-      gap: 3px;
+      gap: 8px;
+      min-width: 0;
     }
-    .source-link {
+    .thread-picker {
+      position: relative;
+      width: min(420px, calc(100vw - 32px));
+    }
+    .thread-picker-label {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 750;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+    .thread-combobox {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 40px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--panel);
+    }
+    .thread-combobox:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.14);
+    }
+    .thread-combobox input {
+      height: 40px;
+      border: 0;
+      border-radius: 5px 0 0 5px;
+      background: transparent;
+    }
+    .thread-combobox input:focus {
+      outline: none;
+    }
+    .thread-combobox button {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border: 0;
+      border-left: 1px solid var(--line);
+      border-radius: 0 5px 5px 0;
+      background: transparent;
       color: var(--accent-strong);
-      font-size: 13px;
-      font-weight: 650;
-      text-decoration: none;
-      width: fit-content;
     }
-    .source-link:hover { text-decoration: underline; }
+    .thread-combobox button:hover {
+      background: #edf7f4;
+    }
+    .thread-picker-arrow {
+      width: 9px;
+      height: 9px;
+      border-right: 2px solid currentColor;
+      border-bottom: 2px solid currentColor;
+      transform: rotate(45deg);
+      margin-top: -4px;
+    }
+    .thread-options {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 12px 28px rgba(29, 37, 40, 0.16);
+      padding: 4px;
+    }
+    .thread-option {
+      display: grid;
+      gap: 2px;
+      width: 100%;
+      height: auto;
+      min-height: 46px;
+      padding: 7px 9px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+    }
+    .thread-option:hover,
+    .thread-option.is-active,
+    .thread-option[aria-selected="true"] {
+      background: #edf7f4;
+      color: var(--ink);
+    }
+    .thread-option-title {
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+    .thread-option-meta,
+    .thread-option-empty {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .thread-option-empty {
+      padding: 8px 10px;
+    }
     .count {
       min-height: 20px;
       color: var(--muted);
@@ -774,7 +913,14 @@ APP_HTML = """<!doctype html>
     <header>
       <div class="title-block">
         <h1>Thread Search</h1>
-        <a id="source-link" class="source-link" href="#" target="_blank" rel="noopener noreferrer">Source reader</a>
+        <div id="thread-picker" class="thread-picker">
+          <label class="thread-picker-label" for="thread-picker-input">Thread</label>
+          <div class="thread-combobox">
+            <input id="thread-picker-input" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="thread-options" placeholder="Choose a thread">
+            <button id="thread-picker-toggle" type="button" aria-label="Show thread options"><span class="thread-picker-arrow" aria-hidden="true"></span></button>
+          </div>
+          <div id="thread-options" class="thread-options" role="listbox" hidden></div>
+        </div>
       </div>
       <div id="count" class="count"></div>
     </header>
@@ -811,6 +957,10 @@ APP_HTML = """<!doctype html>
     const contentsTab = document.querySelector("#tab-contents");
     const searchPanel = document.querySelector("#panel-search");
     const contentsPanel = document.querySelector("#panel-contents");
+    const threadPicker = document.querySelector("#thread-picker");
+    const threadPickerInput = document.querySelector("#thread-picker-input");
+    const threadPickerToggle = document.querySelector("#thread-picker-toggle");
+    const threadOptionsPanel = document.querySelector("#thread-options");
     const form = document.querySelector("#search-form");
     const query = document.querySelector("#query");
     const fromOrder = document.querySelector("#from-order");
@@ -822,12 +972,16 @@ APP_HTML = """<!doctype html>
     const range = document.querySelector("#range");
     const contents = document.querySelector("#contents");
     const tocCount = document.querySelector("#toc-count");
-    const sourceLink = document.querySelector("#source-link");
     let timer = null;
     let privateFulltext = false;
     let contentsLoaded = false;
+    let statsPayload = null;
+    let threadOptions = [];
+    let selectedThreadId = "";
+    let activeThreadOptionId = "";
 
     const initial = new URLSearchParams(window.location.search);
+    selectedThreadId = initial.get("thread") || "";
     query.value = initial.get("q") || "";
     fromOrder.value = initial.get("from") || "";
     toOrder.value = initial.get("to") || "";
@@ -842,6 +996,39 @@ APP_HTML = """<!doctype html>
       timer = setTimeout(runSearch, 220);
     }));
     allWords.addEventListener("change", runSearch);
+    threadPickerInput.addEventListener("focus", () => {
+      threadPickerInput.select();
+      openThreadOptions();
+    });
+    threadPickerInput.addEventListener("input", () => openThreadOptions());
+    threadPickerInput.addEventListener("keydown", event => handleThreadPickerKeydown(event));
+    threadPickerInput.addEventListener("blur", () => {
+      window.setTimeout(() => {
+        if (!threadPicker.contains(document.activeElement)) {
+          resetThreadPickerInput();
+          closeThreadOptions();
+        }
+      }, 120);
+    });
+    threadPickerToggle.addEventListener("mousedown", event => event.preventDefault());
+    threadPickerToggle.addEventListener("click", () => {
+      if (threadOptionsPanel.hidden) {
+        threadPickerInput.focus();
+        openThreadOptions();
+      } else {
+        closeThreadOptions();
+      }
+    });
+    threadOptionsPanel.addEventListener("click", event => {
+      const button = event.target.closest("button[data-thread-id]");
+      if (!button) return;
+      selectThread(button.dataset.threadId, { runSearch: true });
+    });
+    document.addEventListener("click", event => {
+      if (threadPicker.contains(event.target)) return;
+      resetThreadPickerInput();
+      closeThreadOptions();
+    });
     searchTab.addEventListener("click", () => setActiveTab("search"));
     contentsTab.addEventListener("click", () => setActiveTab("contents"));
 
@@ -880,17 +1067,193 @@ APP_HTML = """<!doctype html>
       const response = await fetch("/api/stats");
       const payload = await response.json();
       if (!payload.ok) return;
-      if (payload.source_reader_url) {
-        sourceLink.href = payload.source_reader_url;
-        sourceLink.textContent = payload.source_host ? `${payload.source_host} reader` : "Source reader";
-      }
+      statsPayload = payload;
+      setThreadOptions(Array.isArray(payload.threads) && payload.threads.length ? payload.threads : fallbackThreadOptions(payload));
       privateFulltext = Boolean(payload.private_fulltext);
-      stats.textContent = `${Number(payload.threadmarks).toLocaleString()} threadmarks · ${Number(payload.words).toLocaleString()} words`;
+      updateStatsText();
+    }
+
+    function setThreadOptions(items) {
+      threadOptions = items.map((item, index) => ({
+        id: String(item.id || item.reader_url || `thread-${index + 1}`),
+        title: String(item.title || item.source_host || item.reader_url || `Thread ${index + 1}`),
+        reader_url: String(item.reader_url || ""),
+        source_host: String(item.source_host || ""),
+        threadmarks: Number(item.threadmarks || 0),
+        words: Number(item.words || 0)
+      }));
+      if (!threadOptions.length) {
+        threadPickerInput.value = "";
+        threadPickerInput.disabled = true;
+        threadPickerToggle.disabled = true;
+        return;
+      }
+      threadPickerInput.disabled = false;
+      threadPickerToggle.disabled = false;
+      const initialThread = threadOptions.find(item => item.id === selectedThreadId) || threadOptions[0];
+      selectThread(initialThread.id, { runSearch: false });
+    }
+
+    function fallbackThreadOptions(payload) {
+      if (!payload.source_reader_url) return [];
+      return [{
+        id: payload.source_reader_url,
+        title: payload.source_host ? `${payload.source_host} reader` : "Source reader",
+        reader_url: payload.source_reader_url,
+        source_host: payload.source_host || "",
+        threadmarks: payload.threadmarks || 0,
+        words: payload.words || 0
+      }];
+    }
+
+    function selectedThread() {
+      return threadOptions.find(item => item.id === selectedThreadId) || threadOptions[0] || null;
+    }
+
+    function selectThread(threadId, options = {}) {
+      const item = threadOptions.find(candidate => candidate.id === threadId);
+      if (!item) return;
+      selectedThreadId = item.id;
+      activeThreadOptionId = item.id;
+      threadPickerInput.value = item.title;
+      threadPickerInput.dataset.selectedThreadId = item.id;
+      updateStatsText();
+      closeThreadOptions();
+      updateUrl();
+      if (options.runSearch && query.value.trim()) runSearch();
+    }
+
+    function updateStatsText() {
+      const item = selectedThread();
+      const source = item || statsPayload || {};
+      const threadmarkCount = Number(source.threadmarks || 0);
+      const wordCount = Number(source.words || 0);
+      stats.textContent = `${threadmarkCount.toLocaleString()} threadmarks · ${wordCount.toLocaleString()} words`;
+    }
+
+    function openThreadOptions() {
+      if (!threadOptions.length) return;
+      renderThreadOptions();
+      threadOptionsPanel.hidden = false;
+      threadPickerInput.setAttribute("aria-expanded", "true");
+    }
+
+    function closeThreadOptions() {
+      threadOptionsPanel.hidden = true;
+      threadPickerInput.setAttribute("aria-expanded", "false");
+      threadPickerInput.removeAttribute("aria-activedescendant");
+    }
+
+    function resetThreadPickerInput() {
+      const item = selectedThread();
+      threadPickerInput.value = item ? item.title : "";
+    }
+
+    function renderThreadOptions() {
+      const matches = filteredThreadOptions();
+      if (!matches.length) {
+        activeThreadOptionId = "";
+        threadPickerInput.removeAttribute("aria-activedescendant");
+        threadOptionsPanel.innerHTML = '<div class="thread-option-empty">No matching threads</div>';
+        return;
+      }
+      if (!matches.some(item => item.id === activeThreadOptionId)) {
+        activeThreadOptionId = matches[0].id;
+      }
+      const active = matches.find(item => item.id === activeThreadOptionId);
+      if (active) threadPickerInput.setAttribute("aria-activedescendant", threadOptionElementId(active));
+      threadOptionsPanel.innerHTML = matches.map(renderThreadOption).join("");
+    }
+
+    function filteredThreadOptions() {
+      const value = threadPickerInput.value.trim();
+      return threadOptions
+        .map((item, index) => ({ item, index, score: fuzzyThreadScore(item, value) }))
+        .filter(entry => entry.score >= 0)
+        .sort((left, right) => right.score - left.score || left.index - right.index)
+        .map(entry => entry.item);
+    }
+
+    function fuzzyThreadScore(item, value) {
+      const needle = value.toLocaleLowerCase();
+      if (!needle) return 0;
+      const haystack = `${item.title} ${item.source_host} ${item.reader_url}`.toLocaleLowerCase();
+      const directIndex = haystack.indexOf(needle);
+      if (directIndex >= 0) return 1000 - directIndex + needle.length;
+      let score = 0;
+      let lastIndex = -1;
+      for (const char of needle) {
+        const nextIndex = haystack.indexOf(char, lastIndex + 1);
+        if (nextIndex < 0) return -1;
+        score += nextIndex === lastIndex + 1 ? 6 : 1;
+        lastIndex = nextIndex;
+      }
+      return score;
+    }
+
+    function renderThreadOption(item) {
+      const id = threadOptionElementId(item);
+      const isSelected = item.id === selectedThreadId;
+      const isActive = item.id === activeThreadOptionId;
+      const meta = [item.source_host, item.threadmarks ? `${Number(item.threadmarks).toLocaleString()} threadmarks` : ""].filter(Boolean).join(" · ");
+      return `<button id="${escapeAttribute(id)}" class="thread-option${isActive ? " is-active" : ""}" type="button" role="option" data-thread-id="${escapeAttribute(item.id)}" aria-selected="${isSelected ? "true" : "false"}">
+        <span class="thread-option-title">${escapeHtml(item.title)}</span>
+        ${meta ? `<span class="thread-option-meta">${escapeHtml(meta)}</span>` : ""}
+      </button>`;
+    }
+
+    function threadOptionElementId(item) {
+      return `thread-option-${String(item.id).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+    }
+
+    function handleThreadPickerKeydown(event) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        moveActiveThreadOption(1);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        moveActiveThreadOption(-1);
+        return;
+      }
+      if (event.key === "Enter") {
+        if (threadOptionsPanel.hidden) return;
+        event.preventDefault();
+        const active = filteredThreadOptions().find(item => item.id === activeThreadOptionId);
+        if (active) {
+          selectThread(active.id, { runSearch: true });
+        } else {
+          resetThreadPickerInput();
+          closeThreadOptions();
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        resetThreadPickerInput();
+        closeThreadOptions();
+      }
+    }
+
+    function moveActiveThreadOption(offset) {
+      const matches = filteredThreadOptions();
+      if (!matches.length) {
+        openThreadOptions();
+        return;
+      }
+      const current = matches.findIndex(item => item.id === activeThreadOptionId);
+      const next = current < 0 ? 0 : (current + offset + matches.length) % matches.length;
+      activeThreadOptionId = matches[next].id;
+      renderThreadOptions();
+      openThreadOptions();
     }
 
     async function loadContents() {
       contents.innerHTML = '<div class="empty"></div>';
-      const response = await fetch("/api/threadmarks?limit=300");
+      const params = new URLSearchParams({ limit: "300" });
+      addThreadParam(params);
+      const response = await fetch(`/api/threadmarks?${params.toString()}`);
       const payload = await response.json();
       const items = payload.items || [];
       contentsLoaded = true;
@@ -903,9 +1266,14 @@ APP_HTML = """<!doctype html>
         q: query.value.trim(),
         mode: allWords.checked ? "all" : "any"
       });
+      addThreadParam(params);
       if (fromOrder.value) params.set("from", fromOrder.value);
       if (toOrder.value) params.set("to", toOrder.value);
       return params;
+    }
+
+    function addThreadParam(params) {
+      if (selectedThreadId) params.set("thread", selectedThreadId);
     }
 
     function updateUrl() {
@@ -916,6 +1284,7 @@ APP_HTML = """<!doctype html>
 
     function uiStateParams() {
       const params = new URLSearchParams();
+      if (selectedThreadId && threadOptions.length > 1) params.set("thread", selectedThreadId);
       if (query.value.trim()) {
         params.set("q", query.value.trim());
         if (!allWords.checked) params.set("mode", "any");

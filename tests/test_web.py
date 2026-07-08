@@ -15,6 +15,8 @@ from planquest.web import (
     health_payload,
     html_csp,
     index_stats,
+    thread_id_from_reader_url,
+    thread_title_from_reader_url,
 )
 from planquest.indexer import build_index
 from planquest.models import Threadmark
@@ -76,6 +78,16 @@ def test_index_stats_include_public_caps(tmp_path) -> None:
     assert stats["ok"] is True
     assert stats["source_reader_url"].startswith("https://forums.sufficientvelocity.com/threads/")
     assert stats["source_host"] == "forums.sufficientvelocity.com"
+    assert stats["threads"] == [
+        {
+            "id": "example-thread.1",
+            "title": "Example Thread",
+            "reader_url": stats["source_reader_url"],
+            "source_host": "forums.sufficientvelocity.com",
+            "threadmarks": 1,
+            "words": 3,
+        }
+    ]
     assert stats["public_access_mode"] == "source_linked_search"
     assert "source threadmarks" in stats["public_notice"]
     assert stats["public_contact"] == "mailto:operator@example.invalid"
@@ -126,6 +138,13 @@ def test_health_payload_checks_database_readiness(tmp_path) -> None:
     assert payload["chunks"] == 1
 
 
+def test_thread_metadata_is_derived_from_reader_url() -> None:
+    reader_url = "https://forums.sufficientvelocity.com/threads/a-young-womans-political-record.118774/reader/"
+
+    assert thread_id_from_reader_url(reader_url) == "a-young-womans-political-record.118774"
+    assert thread_title_from_reader_url(reader_url) == "A Young Womans Political Record"
+
+
 def test_health_payload_rejects_missing_or_invalid_database(tmp_path) -> None:
     missing = health_payload(tmp_path / "missing.sqlite")
     invalid_db = tmp_path / "invalid.sqlite"
@@ -141,11 +160,20 @@ def test_health_payload_rejects_missing_or_invalid_database(tmp_path) -> None:
 def test_app_html_exposes_contents_tab_without_fulltext_route() -> None:
     assert 'id="tab-contents"' in APP_HTML
     assert 'id="panel-contents"' in APP_HTML
-    assert "/api/threadmarks?limit=300" in APP_HTML
+    assert "/api/threadmarks?" in APP_HTML
     assert 'id="count"' in APP_HTML
     assert APP_HTML.count('id="count"') == 1
     assert "|[])}." not in APP_HTML
-    assert 'id="source-link"' in APP_HTML
+    assert 'id="source-link"' not in APP_HTML
+    assert 'id="thread-picker"' in APP_HTML
+    assert 'id="thread-picker-input"' in APP_HTML
+    assert 'role="combobox"' in APP_HTML
+    assert 'id="thread-options"' in APP_HTML
+    assert 'role="listbox"' in APP_HTML
+    assert "fuzzyThreadScore" in APP_HTML
+    assert "filteredThreadOptions" in APP_HTML
+    assert "selectThread" in APP_HTML
+    assert "payload.threads" in APP_HTML
     assert 'id="query"' in APP_HTML
     assert 'id="from-order"' in APP_HTML
     assert 'id="to-order"' in APP_HTML
