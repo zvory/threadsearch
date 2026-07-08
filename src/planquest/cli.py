@@ -81,7 +81,56 @@ from .smoke import run_public_smoke
 from .site_policy import make_site_policy_review, render_site_policy_review_markdown
 from .status import corpus_summary, db_summary, fetch_log_summary
 from .validate import validate_corpus, validate_launch_ready
-from .web import claim_query_candidate, question_claim_query_candidate, serve
+from .web import serve
+
+
+QUESTION_LEAD_WORDS = frozenset(
+    {"is", "are", "was", "were", "do", "does", "did", "has", "have", "had", "can", "could", "will", "would", "should"}
+)
+CLAIM_FILLER_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "is",
+        "are",
+        "was",
+        "were",
+        "do",
+        "does",
+        "did",
+        "has",
+        "have",
+        "had",
+        "can",
+        "could",
+        "will",
+        "would",
+        "should",
+        "not",
+        "no",
+        "never",
+        "be",
+        "been",
+        "being",
+        "turn",
+        "turns",
+        "turned",
+        "become",
+        "becomes",
+        "became",
+        "go",
+        "goes",
+        "went",
+        "get",
+        "gets",
+        "got",
+        "actually",
+        "really",
+        "ever",
+    }
+)
+CLAIM_STRIP_CHARS = "\"'“”‘’()[]{}.,?!:;"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -136,7 +185,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     permission_request = subparsers.add_parser(
         "permission-request",
-        help="Draft an author/admin permission request for public snippet search.",
+        help="Draft an author/admin permission request for public source-linked search.",
     )
     permission_request.add_argument("--out", type=Path, help="Write the request draft to this path instead of stdout.")
     permission_request.add_argument("--overwrite", action="store_true")
@@ -495,7 +544,7 @@ def build_parser() -> argparse.ArgumentParser:
     validate.add_argument("--probe", action="append", default=[], help="Require a search term to return a result.")
     validate.set_defaults(func=cmd_validate)
 
-    launch = subparsers.add_parser("launch-check", help="Validate that a public snippet-search launch is ready.")
+    launch = subparsers.add_parser("launch-check", help="Validate that a public source-linked search launch is ready.")
     launch.add_argument("--input", type=Path, default=DEFAULT_JSONL)
     launch.add_argument("--db", type=Path, default=DEFAULT_DB)
     launch.add_argument("--db-only", action="store_true", help="Validate only the SQLite deployment artifact.")
@@ -510,7 +559,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     launch.set_defaults(func=cmd_launch_check)
 
-    smoke = subparsers.add_parser("public-smoke", help="Smoke-test a running public snippet-search server.")
+    smoke = subparsers.add_parser("public-smoke", help="Smoke-test a running public source-linked search server.")
     smoke.add_argument("--base-url", default="http://127.0.0.1:8765")
     smoke.add_argument("--probe", action="append", default=[], help="Require a live search probe to return results.")
     smoke.add_argument(
@@ -586,7 +635,7 @@ def build_parser() -> argparse.ArgumentParser:
     preview_stop.add_argument("--json", action="store_true")
     preview_stop.set_defaults(func=cmd_preview_stop)
 
-    artifact = subparsers.add_parser("artifact", help="Export a private backend artifact for public snippet search.")
+    artifact = subparsers.add_parser("artifact", help="Export a private backend artifact for public source-linked search.")
     artifact.add_argument("--db", type=Path, default=DEFAULT_DB)
     artifact.add_argument("--out-dir", type=Path, default=Path("dist/thread-search-public"))
     artifact.add_argument("--expected-threadmarks", type=int, default=269)
@@ -1843,6 +1892,60 @@ def retrieval_match_note(match_kind: str, match_query: str, *, markdown: bool = 
     return ""
 
 
+def claim_query_candidate(value: str) -> tuple[str, str] | None:
+    parts = [clean_claim_token(part) for part in value.split()]
+    parts = [part for part in parts if part]
+    if len(parts) < 2:
+        return None
+
+    topic = parts[0]
+    claim_parts = parts[1:]
+    if len(parts) >= 3 and parts[0].casefold() in QUESTION_LEAD_WORDS:
+        topic = parts[1]
+        claim_parts = parts[2:]
+
+    topic = clean_topic_token(topic)
+    claim = clean_claim_phrase(claim_parts)
+    if not topic or not claim:
+        return None
+    return topic, claim
+
+
+def question_claim_query_candidate(value: str) -> tuple[str, str] | None:
+    parts = [clean_claim_token(part) for part in value.split()]
+    parts = [part for part in parts if part]
+    if len(parts) < 2:
+        return None
+
+    first = parts[0]
+    first_lower = first.casefold()
+    first_is_possessive = first_lower.endswith("'s") or first_lower.endswith("’s")
+    if first_lower not in QUESTION_LEAD_WORDS and not first_is_possessive:
+        return None
+    return claim_query_candidate(value)
+
+
+def clean_claim_token(token: str) -> str:
+    return token.strip().strip(CLAIM_STRIP_CHARS)
+
+
+def clean_topic_token(token: str) -> str:
+    cleaned = clean_claim_token(token)
+    lowered = cleaned.casefold()
+    if lowered.endswith("'s") or lowered.endswith("’s"):
+        return cleaned[:-2]
+    return cleaned
+
+
+def clean_claim_phrase(parts: list[str]) -> str:
+    filtered = []
+    for part in parts:
+        cleaned = clean_claim_token(part)
+        if cleaned and cleaned.casefold() not in CLAIM_FILLER_WORDS:
+            filtered.append(cleaned)
+    return " ".join(filtered).strip()
+
+
 def cmd_claim(args: argparse.Namespace) -> int:
     topic_query = args.topic_query
     claim_query = args.claim_query or ""
@@ -2258,7 +2361,7 @@ def cmd_preview_start(args: argparse.Namespace) -> int:
                 "audit_command: "
                 f".venv/bin/thread-search audit {probe_args} "
                 f"--artifact-manifest {args.artifact_manifest} --permission-note {DEFAULT_PERMISSION_NOTE} "
-                f"--public-base-url {state.public_base_url} --claim-pair Cuba communist "
+                f"--public-base-url {state.public_base_url} "
                 "--json --out data/public-preview-audit.json"
             )
     return 0

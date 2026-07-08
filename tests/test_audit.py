@@ -81,18 +81,18 @@ def write_valid_permission_note(tmp_path: Path) -> Path:
 
 def concrete_permission_detail(item: str) -> str:
     details = {
-        "Permission source": "Author forum PM confirming snippet search on 2026-07-08.",
+        "Permission source": "Author forum PM confirming source-linked search on 2026-07-08.",
         "Permission date": "2026-07-08.",
-        "Permission covers public snippet search with source links": "Author approved public snippets with links back to Sufficient Velocity.",
+        "Permission covers public source-linked search": "Author approved source-linked search hits back to Sufficient Velocity.",
         "Permission does not cover public full-text redistribution unless explicitly recorded here": "No public full-text redistribution approved.",
         "Sufficient Velocity rules or policy pages reviewed": "Reviewed Sufficient Velocity terms and rules pages at https://forums.sufficientvelocity.com/ on 2026-07-08.",
         "Review date": "2026-07-08.",
-        "Limits affecting deployment, crawling, snippets, indexing, or attribution": "Keep snippets bounded, noindex enabled, and source links visible.",
-        "Public access is snippet-only and source-linked": "Public UI and API expose only bounded snippets with source URLs.",
+        "Limits affecting deployment, crawling, snippets, indexing, or attribution": "Keep noindex enabled and source links visible.",
+        "Public access is source-linked search": "Public UI and API expose source-linked search hits.",
         "Full-text threadmark routes are disabled": "Public server runs without --private-fulltext.",
         "SQLite database remains private server-side, not static/downloadable": "Artifact database is mounted privately behind the server.",
         "Search-engine indexing remains blocked unless explicitly allowed": "X-Robots-Tag noindex and disallow-all robots.txt remain enabled.",
-        "Decision to proceed or not proceed": "proceed with public snippet search.",
+        "Decision to proceed or not proceed": "proceed with public source-linked search.",
         "Operator name or handle": "Test Operator.",
         "Decision date": "2026-07-08.",
     }
@@ -120,7 +120,7 @@ def content_handling(**overrides: object) -> dict[str, object]:
         "database_must_not_be_static_or_downloadable": True,
         "raw_html_included": False,
         "jsonl_included": False,
-        "public_responses_are_snippets_and_source_links": True,
+        "public_responses_are_source_linked_hits": True,
         "public_ui_source_attribution": True,
         "public_ui_contact_or_removal_notice_supported": True,
     }
@@ -131,19 +131,10 @@ def content_handling(**overrides: object) -> dict[str, object]:
 def api_contract(**overrides: object) -> dict[str, object]:
     contract: dict[str, object] = {
         "public_endpoints": list(PUBLIC_API_ENDPOINTS),
-        "dossier_endpoint_enabled": True,
-        "evidence_pack_endpoint_enabled": True,
-        "recap_endpoint_enabled": True,
-        "coverage_endpoint_enabled": True,
-        "compare_endpoint_enabled": True,
-        "terms_endpoint_metadata_only": True,
-        "explain_endpoint_metadata_only": True,
-        "explain_term_breakdown_metadata_only": True,
-        "claim_endpoint_enabled": True,
-        "claim_negation_cues_enabled": True,
-        "claim_cautions_enabled": True,
+        "grouped_search_endpoint_enabled": True,
+        "word_variants_always_enabled": True,
         "private_fulltext_endpoint_public": False,
-        "responses_are_bounded_by_public_caps": True,
+        "legacy_evidence_endpoints_public": False,
     }
     contract.update(overrides)
     return contract
@@ -220,7 +211,7 @@ def test_evaluate_audit_warns_on_negative_deployment_decision(tmp_path: Path) ->
     note = write_valid_permission_note(tmp_path)
     note.write_text(
         note.read_text(encoding="utf-8").replace(
-            "Decision to proceed or not proceed: proceed with public snippet search.",
+                "Decision to proceed or not proceed: proceed with public source-linked search.",
             "Decision to proceed or not proceed: do not deploy publicly.",
         ),
         encoding="utf-8",
@@ -638,48 +629,9 @@ def test_evaluate_audit_rejects_missing_public_source_attribution(tmp_path: Path
     assert artifact_item.evidence["content_handling"]["public_ui_source_attribution"] is False
 
 
-def test_evaluate_audit_requires_dossier_endpoint_contract(tmp_path: Path) -> None:
+def test_evaluate_audit_rejects_legacy_public_endpoint_contract(tmp_path: Path) -> None:
     note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/dossier"]
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "artifact": "thread-search-public-search-backend",
-                "public_contact": PUBLIC_CONTACT,
-                "removal_request_url": REMOVAL_REQUEST_URL,
-                "database": artifact_database(tmp_path),
-                "index": {"threadmarks": 2},
-                "validation": {"ok": True},
-                "public_server_defaults": public_defaults(),
-                "content_handling": content_handling(),
-                "public_api_contract": api_contract(public_endpoints=endpoints, dossier_endpoint_enabled=False),
-                "deployment_runtime_contract": deployment_runtime_contract(),
-                "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    report = evaluate_audit(
-        payload(threadmarks=2, expected=2),
-        expected_threadmarks=2,
-        expected_category=1,
-        excluded_categories=(4, 5),
-        probes=("Cuba",),
-        artifact_manifest=manifest,
-        permission_note=note,
-    )
-
-    artifact_item = next(item for item in report.items if item.key == "artifact_manifest")
-    assert report.ok is False
-    assert artifact_item.status == "fail"
-    assert artifact_item.evidence["public_api_contract_ok"] is False
-
-
-def test_evaluate_audit_requires_evidence_pack_endpoint_contract(tmp_path: Path) -> None:
-    note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/evidence-pack"]
+    legacy_endpoints = list(PUBLIC_API_ENDPOINTS) + ["/api/dossier", "/api/explain", "/api/claim"]
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
         json.dumps(
@@ -693,8 +645,8 @@ def test_evaluate_audit_requires_evidence_pack_endpoint_contract(tmp_path: Path)
                 "public_server_defaults": public_defaults(),
                 "content_handling": content_handling(),
                 "public_api_contract": api_contract(
-                    public_endpoints=endpoints,
-                    evidence_pack_endpoint_enabled=False,
+                    public_endpoints=legacy_endpoints,
+                    legacy_evidence_endpoints_public=True,
                 ),
                 "deployment_runtime_contract": deployment_runtime_contract(),
                 "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
@@ -717,11 +669,11 @@ def test_evaluate_audit_requires_evidence_pack_endpoint_contract(tmp_path: Path)
     assert report.ok is False
     assert artifact_item.status == "fail"
     assert artifact_item.evidence["public_api_contract_ok"] is False
+    assert artifact_item.evidence["public_api_contract"]["legacy_evidence_endpoints_public"] is True
 
 
-def test_evaluate_audit_requires_recap_endpoint_contract(tmp_path: Path) -> None:
+def test_evaluate_audit_requires_grouped_search_contract(tmp_path: Path) -> None:
     note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/recap"]
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
         json.dumps(
@@ -734,10 +686,7 @@ def test_evaluate_audit_requires_recap_endpoint_contract(tmp_path: Path) -> None
                 "validation": {"ok": True},
                 "public_server_defaults": public_defaults(),
                 "content_handling": content_handling(),
-                "public_api_contract": api_contract(
-                    public_endpoints=endpoints,
-                    recap_endpoint_enabled=False,
-                ),
+                "public_api_contract": api_contract(grouped_search_endpoint_enabled=False),
                 "deployment_runtime_contract": deployment_runtime_contract(),
                 "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
             }
@@ -761,163 +710,7 @@ def test_evaluate_audit_requires_recap_endpoint_contract(tmp_path: Path) -> None
     assert artifact_item.evidence["public_api_contract_ok"] is False
 
 
-def test_evaluate_audit_requires_coverage_endpoint_contract(tmp_path: Path) -> None:
-    note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/coverage"]
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "artifact": "thread-search-public-search-backend",
-                "public_contact": PUBLIC_CONTACT,
-                "removal_request_url": REMOVAL_REQUEST_URL,
-                "database": artifact_database(tmp_path),
-                "index": {"threadmarks": 2},
-                "validation": {"ok": True},
-                "public_server_defaults": public_defaults(),
-                "content_handling": content_handling(),
-                "public_api_contract": api_contract(public_endpoints=endpoints, coverage_endpoint_enabled=False),
-                "deployment_runtime_contract": deployment_runtime_contract(),
-                "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    report = evaluate_audit(
-        payload(threadmarks=2, expected=2),
-        expected_threadmarks=2,
-        expected_category=1,
-        excluded_categories=(4, 5),
-        probes=("Cuba",),
-        artifact_manifest=manifest,
-        permission_note=note,
-    )
-
-    artifact_item = next(item for item in report.items if item.key == "artifact_manifest")
-    assert report.ok is False
-    assert artifact_item.status == "fail"
-    assert artifact_item.evidence["public_api_contract_ok"] is False
-
-
-def test_evaluate_audit_requires_compare_endpoint_contract(tmp_path: Path) -> None:
-    note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/compare"]
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "artifact": "thread-search-public-search-backend",
-                "public_contact": PUBLIC_CONTACT,
-                "removal_request_url": REMOVAL_REQUEST_URL,
-                "database": artifact_database(tmp_path),
-                "index": {"threadmarks": 2},
-                "validation": {"ok": True},
-                "public_server_defaults": public_defaults(),
-                "content_handling": content_handling(),
-                "public_api_contract": api_contract(public_endpoints=endpoints, compare_endpoint_enabled=False),
-                "deployment_runtime_contract": deployment_runtime_contract(),
-                "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    report = evaluate_audit(
-        payload(threadmarks=2, expected=2),
-        expected_threadmarks=2,
-        expected_category=1,
-        excluded_categories=(4, 5),
-        probes=("Cuba",),
-        artifact_manifest=manifest,
-        permission_note=note,
-    )
-
-    artifact_item = next(item for item in report.items if item.key == "artifact_manifest")
-    assert report.ok is False
-    assert artifact_item.status == "fail"
-    assert artifact_item.evidence["public_api_contract_ok"] is False
-
-
-def test_evaluate_audit_requires_terms_endpoint_contract(tmp_path: Path) -> None:
-    note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/terms"]
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "artifact": "thread-search-public-search-backend",
-                "public_contact": PUBLIC_CONTACT,
-                "removal_request_url": REMOVAL_REQUEST_URL,
-                "database": artifact_database(tmp_path),
-                "index": {"threadmarks": 2},
-                "validation": {"ok": True},
-                "public_server_defaults": public_defaults(),
-                "content_handling": content_handling(),
-                "public_api_contract": api_contract(public_endpoints=endpoints, terms_endpoint_metadata_only=False),
-                "deployment_runtime_contract": deployment_runtime_contract(),
-                "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    report = evaluate_audit(
-        payload(threadmarks=2, expected=2),
-        expected_threadmarks=2,
-        expected_category=1,
-        excluded_categories=(4, 5),
-        probes=("Cuba",),
-        artifact_manifest=manifest,
-        permission_note=note,
-    )
-
-    artifact_item = next(item for item in report.items if item.key == "artifact_manifest")
-    assert report.ok is False
-    assert artifact_item.status == "fail"
-    assert artifact_item.evidence["public_api_contract_ok"] is False
-
-
-def test_evaluate_audit_requires_explain_endpoint_contract(tmp_path: Path) -> None:
-    note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/explain"]
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "artifact": "thread-search-public-search-backend",
-                "public_contact": PUBLIC_CONTACT,
-                "removal_request_url": REMOVAL_REQUEST_URL,
-                "database": artifact_database(tmp_path),
-                "index": {"threadmarks": 2},
-                "validation": {"ok": True},
-                "public_server_defaults": public_defaults(),
-                "content_handling": content_handling(),
-                "public_api_contract": api_contract(public_endpoints=endpoints, explain_endpoint_metadata_only=False),
-                "deployment_runtime_contract": deployment_runtime_contract(),
-                "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    report = evaluate_audit(
-        payload(threadmarks=2, expected=2),
-        expected_threadmarks=2,
-        expected_category=1,
-        excluded_categories=(4, 5),
-        probes=("Cuba",),
-        artifact_manifest=manifest,
-        permission_note=note,
-    )
-
-    artifact_item = next(item for item in report.items if item.key == "artifact_manifest")
-    assert report.ok is False
-    assert artifact_item.status == "fail"
-    assert artifact_item.evidence["public_api_contract_ok"] is False
-
-
-def test_evaluate_audit_requires_explain_term_breakdown_contract(tmp_path: Path) -> None:
+def test_evaluate_audit_requires_word_variants_contract(tmp_path: Path) -> None:
     note = write_valid_permission_note(tmp_path)
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
@@ -931,51 +724,7 @@ def test_evaluate_audit_requires_explain_term_breakdown_contract(tmp_path: Path)
                 "validation": {"ok": True},
                 "public_server_defaults": public_defaults(),
                 "content_handling": content_handling(),
-                "public_api_contract": api_contract(explain_term_breakdown_metadata_only=False),
-                "deployment_runtime_contract": deployment_runtime_contract(),
-                "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    report = evaluate_audit(
-        payload(threadmarks=2, expected=2),
-        expected_threadmarks=2,
-        expected_category=1,
-        excluded_categories=(4, 5),
-        probes=("Cuba",),
-        artifact_manifest=manifest,
-        permission_note=note,
-    )
-
-    artifact_item = next(item for item in report.items if item.key == "artifact_manifest")
-    assert report.ok is False
-    assert artifact_item.status == "fail"
-    assert artifact_item.evidence["public_api_contract_ok"] is False
-
-
-def test_evaluate_audit_requires_claim_endpoint_contract(tmp_path: Path) -> None:
-    note = write_valid_permission_note(tmp_path)
-    endpoints = [endpoint for endpoint in PUBLIC_API_ENDPOINTS if endpoint != "/api/claim"]
-    manifest = tmp_path / "manifest.json"
-    manifest.write_text(
-        json.dumps(
-            {
-                "artifact": "thread-search-public-search-backend",
-                "public_contact": PUBLIC_CONTACT,
-                "removal_request_url": REMOVAL_REQUEST_URL,
-                "database": artifact_database(tmp_path),
-                "index": {"threadmarks": 2},
-                "validation": {"ok": True},
-                "public_server_defaults": public_defaults(),
-                "content_handling": content_handling(),
-                "public_api_contract": api_contract(
-                    public_endpoints=endpoints,
-                    claim_endpoint_enabled=False,
-                    claim_negation_cues_enabled=False,
-                    claim_cautions_enabled=False,
-                ),
+                "public_api_contract": api_contract(word_variants_always_enabled=False),
                 "deployment_runtime_contract": deployment_runtime_contract(),
                 "permission_note": {"provided": True, "exists": True, "ok": True, "sha256": "abc"},
             }

@@ -113,11 +113,12 @@ def test_render_author_review_packet_is_metadata_only(tmp_path: Path, monkeypatc
     assert "Public app bundle SHA-256: `appabc`" in rendered
     assert "Private artifact bundle SHA-256: `privateabc`" in rendered
     assert "Private artifact bundle handling: keep server-side only" in rendered
-    assert "[Claim diagnostics JSON for `Cuba` / `communist`]" in rendered
     assert rendered.count("[Search `Cuba`]") == 1
-    assert "/api/claim?q=Cuba&claim=communist" in rendered
-    assert "/api/compare?q=Cuba&topic=communist" in rendered
-    assert "/api/explain?q=Cuba+communist" in rendered
+    assert "[Search `communist`]" in rendered
+    assert "[Claim diagnostics JSON for `Cuba` / `communist`]" not in rendered
+    assert "/api/claim?q=Cuba&claim=communist" not in rendered
+    assert "/api/compare?q=Cuba&topic=communist" not in rendered
+    assert "/api/explain?q=Cuba+communist" not in rendered
     assert "bbWrapper" not in rendered
     assert "First paragraph" not in rendered
     assert "chunks.body" not in rendered

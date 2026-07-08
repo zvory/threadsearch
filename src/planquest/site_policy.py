@@ -107,7 +107,7 @@ def make_site_policy_review(
         operator_notes=(
             "Review the official policy pages manually before filling in data/permission-note.md.",
             "This snapshot only records robots.txt decisions and policy URLs; it does not grant redistribution permission.",
-            "Keep public deployment snippet-only, source-linked, noindex, and without public corpus/database downloads unless explicit permission says otherwise.",
+            "Keep public deployment source-linked, noindex, and without public corpus/database downloads unless explicit permission says otherwise.",
         ),
     )
 

@@ -59,18 +59,18 @@ def write_valid_permission_note(tmp_path: Path) -> Path:
 
 def concrete_permission_detail(item: str) -> str:
     details = {
-        "Permission source": "Author forum PM confirming snippet search on 2026-07-08.",
+        "Permission source": "Author forum PM confirming source-linked search on 2026-07-08.",
         "Permission date": "2026-07-08.",
-        "Permission covers public snippet search with source links": "Author approved public snippets with links back to Sufficient Velocity.",
+        "Permission covers public source-linked search": "Author approved source-linked search hits back to Sufficient Velocity.",
         "Permission does not cover public full-text redistribution unless explicitly recorded here": "No public full-text redistribution approved.",
         "Sufficient Velocity rules or policy pages reviewed": "Reviewed Sufficient Velocity terms and rules pages at https://forums.sufficientvelocity.com/ on 2026-07-08.",
         "Review date": "2026-07-08.",
-        "Limits affecting deployment, crawling, snippets, indexing, or attribution": "Keep snippets bounded, noindex enabled, and source links visible.",
-        "Public access is snippet-only and source-linked": "Public UI and API expose only bounded snippets with source URLs.",
+        "Limits affecting deployment, crawling, snippets, indexing, or attribution": "Keep noindex enabled and source links visible.",
+        "Public access is source-linked search": "Public UI and API expose source-linked search hits.",
         "Full-text threadmark routes are disabled": "Public server runs without --private-fulltext.",
         "SQLite database remains private server-side, not static/downloadable": "Artifact database is mounted privately behind the server.",
         "Search-engine indexing remains blocked unless explicitly allowed": "X-Robots-Tag noindex and disallow-all robots.txt remain enabled.",
-        "Decision to proceed or not proceed": "proceed with public snippet search.",
+        "Decision to proceed or not proceed": "proceed with public source-linked search.",
         "Operator name or handle": "Test Operator.",
         "Decision date": "2026-07-08.",
     }
@@ -125,31 +125,24 @@ def test_export_public_artifact_copies_db_and_writes_manifest(tmp_path: Path) ->
     assert manifest["content_handling"]["raw_html_included"] is False
     assert manifest["content_handling"]["jsonl_included"] is False
     assert manifest["content_handling"]["database_must_not_be_static_or_downloadable"] is True
-    assert manifest["content_handling"]["public_responses_are_snippets_and_source_links"] is True
+    assert manifest["content_handling"]["public_responses_are_source_linked_hits"] is True
     assert manifest["content_handling"]["public_ui_source_attribution"] is True
     assert manifest["content_handling"]["public_ui_contact_or_removal_notice_supported"] is True
     assert manifest["public_api_contract"]["public_endpoints"] == list(PUBLIC_API_ENDPOINTS)
-    assert "/api/dossier" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/evidence-pack" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/recap" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/coverage" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/compare" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/terms" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/explain" in manifest["public_api_contract"]["public_endpoints"]
-    assert "/api/claim" in manifest["public_api_contract"]["public_endpoints"]
-    assert manifest["public_api_contract"]["dossier_endpoint_enabled"] is True
-    assert manifest["public_api_contract"]["evidence_pack_endpoint_enabled"] is True
-    assert manifest["public_api_contract"]["recap_endpoint_enabled"] is True
-    assert manifest["public_api_contract"]["coverage_endpoint_enabled"] is True
-    assert manifest["public_api_contract"]["compare_endpoint_enabled"] is True
-    assert manifest["public_api_contract"]["terms_endpoint_metadata_only"] is True
-    assert manifest["public_api_contract"]["explain_endpoint_metadata_only"] is True
-    assert manifest["public_api_contract"]["explain_term_breakdown_metadata_only"] is True
-    assert manifest["public_api_contract"]["claim_endpoint_enabled"] is True
-    assert manifest["public_api_contract"]["claim_negation_cues_enabled"] is True
-    assert manifest["public_api_contract"]["claim_cautions_enabled"] is True
+    assert "/api/search" in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/threadmarks" in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/dossier" not in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/evidence-pack" not in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/recap" not in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/coverage" not in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/compare" not in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/terms" not in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/explain" not in manifest["public_api_contract"]["public_endpoints"]
+    assert "/api/claim" not in manifest["public_api_contract"]["public_endpoints"]
+    assert manifest["public_api_contract"]["grouped_search_endpoint_enabled"] is True
+    assert manifest["public_api_contract"]["word_variants_always_enabled"] is True
     assert manifest["public_api_contract"]["private_fulltext_endpoint_public"] is False
-    assert manifest["public_api_contract"]["responses_are_bounded_by_public_caps"] is True
+    assert manifest["public_api_contract"]["legacy_evidence_endpoints_public"] is False
     assert manifest["deployment_runtime_contract"] == DEPLOYMENT_RUNTIME_CONTRACT
     assert manifest["permission_note"] == {"exists": False, "ok": False, "provided": False}
     readme = result.readme_path.read_text(encoding="utf-8")
@@ -159,17 +152,19 @@ def test_export_public_artifact_copies_db_and_writes_manifest(tmp_path: Path) ->
     assert "public-smoke" in readme
     assert "--require-artifact-manifest" in readme
     assert "artifact_manifest_validated: true" in readme
-    assert "--claim-pair Cuba communist" in readme
+    assert "--claim-pair Cuba communist" not in readme
     assert "audit --artifact-manifest" in readme
     assert "--public-base-url" in readme
     assert "source attribution" in readme
     assert "THREAD_SEARCH_PUBLIC_CONTACT" in readme
     assert "THREAD_SEARCH_REMOVAL_REQUEST_URL" in readme
-    assert "/api/dossier" in readme
-    assert "/api/coverage" in readme
-    assert "/api/compare" in readme
-    assert "/api/terms" in readme
-    assert "/api/explain" in readme
+    assert "/api/search" in readme
+    assert "/api/threadmarks" in readme
+    assert "/api/dossier" not in readme
+    assert "/api/coverage" not in readme
+    assert "/api/compare" not in readme
+    assert "/api/terms" not in readme
+    assert "/api/explain" not in readme
 
 
 def test_export_public_artifact_records_permission_note_hash(tmp_path: Path) -> None:

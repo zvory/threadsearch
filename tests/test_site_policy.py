@@ -57,10 +57,11 @@ def test_site_policy_review_markdown_lists_policy_urls_without_story_text(tmp_pa
     assert "Target thread reader" in rendered
     assert "Official Policy Pages To Review" in rendered
     assert "Advertising and Commercial Use Policy" in rendered
-    assert "snippet-only" in rendered
+    assert "source-linked" in rendered
+    assert "snippet-only" not in rendered
     assert "bbWrapper" not in rendered
     assert "body" not in rendered
-    assert "snippet" not in rendered.lower().replace("snippet-only", "")
+    assert "snippet" not in rendered.lower()
 
 
 def test_site_review_cli_emits_json_from_cached_robots(tmp_path: Path, capsys) -> None:

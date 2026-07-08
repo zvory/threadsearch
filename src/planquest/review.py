@@ -10,7 +10,7 @@ from .deploy_bundle import BUNDLE_MANIFEST_NAME, DEFAULT_BUNDLE_DIR, verify_depl
 from .permission import permission_note_summary
 
 
-DEFAULT_DEMO_CLAIM_PAIRS = (("Cuba", "communist"),)
+DEFAULT_DEMO_CLAIM_PAIRS: tuple[tuple[str, str], ...] = ()
 
 
 def render_author_review_packet(
@@ -56,7 +56,7 @@ def render_author_review_packet(
         "",
         "## Public Prototype Contract",
         "",
-        "- Public UI/API is snippet-only and source-linked.",
+        "- Public UI/API exposes source-linked search hits grouped by threadmark.",
         "- Full-text threadmark routes stay disabled.",
         "- Raw crawl cache, extracted JSONL, and SQLite database are not public downloads.",
         "- Search-engine indexing stays blocked with `noindex` and a disallow-all `robots.txt`.",
@@ -111,20 +111,14 @@ def render_author_review_packet(
         append_search_link(lines, base_url, probe, seen_search_terms)
     for topic, claim in claim_pairs:
         append_search_link(lines, base_url, topic, seen_search_terms)
-        lines.extend(
-            [
-                f"- [Claim diagnostics JSON for `{topic}` / `{claim}`]({url_for(base_url, '/api/claim', {'q': topic, 'claim': claim})})",
-                f"- [Metadata-only comparison JSON for `{topic}` / `{claim}`]({url_for(base_url, '/api/compare', {'q': topic, 'topic': claim})})",
-                f"- [Query explanation JSON for `{topic} {claim}`]({url_for(base_url, '/api/explain', {'q': f'{topic} {claim}'})})",
-            ]
-        )
+        append_search_link(lines, base_url, claim, seen_search_terms)
 
     lines.extend(
         [
             "",
             "## Suggested Review Questions",
             "",
-            "- Is snippet length and attribution acceptable?",
+            "- Are source-linked search hits and attribution acceptable?",
             "- Are source links prominent enough?",
             "- Should any topic, term, or section be excluded from public search?",
             "- Should the public prototype remain noindex?",
@@ -134,11 +128,11 @@ def render_author_review_packet(
             "",
             "```sh",
             ".venv/bin/thread-search public-smoke --base-url "
-            f"{base_url} --require-artifact-manifest --probe Soviet --probe Cuba --claim-pair Cuba communist",
+            f"{base_url} --require-artifact-manifest --probe Soviet --probe Cuba",
             ".venv/bin/thread-search audit --probe Soviet --probe Cuba "
             "--artifact-manifest dist/thread-search-public/manifest.json "
             "--permission-note data/permission-note.md "
-            f"--public-base-url {base_url} --claim-pair Cuba communist",
+            f"--public-base-url {base_url}",
             "```",
         ]
     )

@@ -104,10 +104,10 @@ def test_render_runbook_includes_current_state_and_next_command() -> None:
         "--require-artifact-manifest --probe Cuba"
     ) in rendered
     assert ".venv/bin/thread-search preview-start --probe Cuba" in rendered
-    assert ".venv/bin/thread-search preview-status --smoke --probe Cuba --claim-pair Cuba communist" in rendered
+    assert ".venv/bin/thread-search preview-status --smoke --probe Cuba" in rendered
     assert ".venv/bin/thread-search preview-stop" in rendered
     assert "default 60 requests/minute per-IP limiter" in rendered
-    assert "add `--claim-pair Cuba communist`" in rendered
+    assert "--claim-pair Cuba communist" not in rendered
     assert (
         ".venv/bin/thread-search audit --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json "
         "--public-base-url http://127.0.0.1:8765"
@@ -159,7 +159,7 @@ def test_render_runbook_shows_incomplete_permission_note_blockers(tmp_path: Path
 
 ## Public Deployment Scope
 
-- [x] Public access is snippet-only and source-linked: bounded snippets with links.
+- [x] Public access is source-linked search: source-linked search hits.
 
 ## Operator Decision
 

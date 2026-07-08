@@ -72,86 +72,23 @@ def test_public_smoke_passes_public_snippet_server(tmp_path: Path) -> None:
             "healthz",
             "stats_public_contract",
             "search_probe:Cuba",
-            "search_prefix_variants_probe:Cuba",
-            "terms_probe:Cuba",
-            "explain_probe:Cuba",
-            "mentions_probe:Cuba",
-            "coverage_probe:Cuba",
-            "compare_probe:Cuba:Soviet",
-            "dossier_probe:Cuba",
-            "evidence_pack_probe:Cuba",
-            "recap_probe:Cuba",
-            "explain_pair:Cuba:communist",
-            "claim_pair:Cuba:communist",
-            "claim_q_only:Cuba:communist",
-            "evidence_pack_q_only:Cuba:communist",
-            "recap_q_only:Cuba:communist",
             "private_threadmark_route",
             "private_download_paths",
         }
         assert items["html_shell"].evidence["meta_robots"] is True
-        assert items["html_shell"].evidence["share_link"] is True
-        assert items["html_shell"].evidence["share_state"] is True
-        assert items["html_shell"].evidence["share_copy"] is True
-        assert items["html_shell"].evidence["result_match_notes"] is True
+        assert items["html_shell"].evidence["simple_search_controls"] is True
+        assert items["html_shell"].evidence["removed_search_slop"] is True
         assert items["private_download_paths"].evidence["exposed_paths"] == []
         assert items["private_download_paths"].evidence["statuses"]["/thread-search.sqlite"] == 404
         assert items["search_probe:Cuba"].evidence["total_threadmarks"] == 1
         assert items["search_probe:Cuba"].evidence["total_chunks"] == 1
-        assert items["search_prefix_variants_probe:Cuba"].evidence["prefix_variants"] is True
-        assert items["search_prefix_variants_probe:Cuba"].evidence["match_kind"] == "prefix-variants"
-        assert items["terms_probe:Cuba"].evidence["first_term"] == "cuba"
-        assert items["explain_probe:Cuba"].evidence["exact_threadmarks"] == 1
-        assert items["explain_probe:Cuba"].evidence["prefix_threadmarks"] == 1
-        assert items["explain_probe:Cuba"].evidence["resolved_match_kind"] == "exact"
-        explain_pair = items["explain_pair:Cuba:communist"]
-        assert explain_pair.evidence["query"] == "Cuba communist"
-        assert [item["query"] for item in explain_pair.evidence["term_breakdown"]] == ["Cuba", "communist"]
-        assert explain_pair.evidence["term_breakdown"][0]["resolved_match_kind"] == "exact"
-        assert explain_pair.evidence["term_breakdown"][1]["resolved_match_kind"] == "exact"
-        assert items["mentions_probe:Cuba"].evidence["total_mentions"] == 1
-        assert items["compare_probe:Cuba:Soviet"].evidence["topic_count"] == 2
-        assert items["compare_probe:Cuba:Soviet"].evidence["pairwise_count"] == 1
-        assert items["evidence_pack_probe:Cuba"].evidence["total_threadmarks"] == 1
-        assert items["recap_probe:Cuba"].evidence["timeline_count"] == 1
+        assert items["search_probe:Cuba"].evidence["word_variants"] is True
+        assert items["search_probe:Cuba"].evidence["threadmark_count"] == 1
         stats = items["stats_public_contract"]
         assert stats.evidence["public_contact"] == PUBLIC_CONTACT
         assert stats.evidence["removal_request_url"] == REMOVAL_REQUEST_URL
         assert stats.evidence["artifact_manifest_validated"] is False
         assert stats.evidence["require_artifact_manifest"] is False
-        claim = items["claim_pair:Cuba:communist"]
-        assert claim.evidence["evidence_level"] == "strong-chunk-overlap"
-        assert claim.evidence["topic_query_exact_threadmarks"] == 1
-        assert claim.evidence["claim_query_exact_threadmarks"] == 1
-        assert claim.evidence["negation_cue_evidence"] == 1
-        assert claim.evidence["caution_codes"] == ["negation-cues"]
-        assert claim.evidence["evidence_proximity_ok"] is True
-        q_only_claim = items["claim_q_only:Cuba:communist"]
-        assert q_only_claim.evidence["claim_inferred_from_query"] is True
-        assert q_only_claim.evidence["original_query"] == "Cuba's communist"
-        assert q_only_claim.evidence["topic_query"] == "Cuba"
-        assert q_only_claim.evidence["claim_query"] == "communist"
-        assert q_only_claim.evidence["evidence_level"] == "strong-chunk-overlap"
-        assert q_only_claim.evidence["topic_query_exact_threadmarks"] == 1
-        assert q_only_claim.evidence["claim_query_exact_threadmarks"] == 1
-        assert q_only_claim.evidence["caution_codes"] == ["negation-cues"]
-        q_only_pack = items["evidence_pack_q_only:Cuba:communist"]
-        assert q_only_pack.evidence["claim_inferred_from_query"] is True
-        assert q_only_pack.evidence["original_query"] == "Cuba's communist"
-        assert q_only_pack.evidence["resolved_query"] == "Cuba"
-        assert q_only_pack.evidence["dossier_query"] == "Cuba"
-        assert q_only_pack.evidence["claim_query"] == "communist"
-        assert q_only_pack.evidence["topic_query_exact_threadmarks"] == 1
-        assert q_only_pack.evidence["claim_query_exact_threadmarks"] == 1
-        assert q_only_pack.evidence["caution_codes"] == ["negation-cues"]
-        q_only_recap = items["recap_q_only:Cuba:communist"]
-        assert q_only_recap.evidence["claim_inferred_from_query"] is True
-        assert q_only_recap.evidence["original_query"] == "Cuba's communist"
-        assert q_only_recap.evidence["resolved_query"] == "Cuba"
-        assert q_only_recap.evidence["claim_query"] == "communist"
-        assert q_only_recap.evidence["topic_query_exact_threadmarks"] == 1
-        assert q_only_recap.evidence["claim_query_exact_threadmarks"] == 1
-        assert q_only_recap.evidence["caution_codes"] == ["negation-cues"]
     finally:
         server.shutdown()
         server.server_close()

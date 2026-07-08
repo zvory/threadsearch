@@ -26,18 +26,7 @@ PUBLIC_API_ENDPOINTS = (
     "/robots.txt",
     "/api/stats",
     "/api/threadmarks",
-    "/api/terms",
-    "/api/explain",
-    "/api/suggest",
     "/api/search",
-    "/api/report",
-    "/api/mentions",
-    "/api/dossier",
-    "/api/evidence-pack",
-    "/api/recap",
-    "/api/coverage",
-    "/api/compare",
-    "/api/claim",
 )
 DEPLOYMENT_RUNTIME_CONTRACT = {
     "serve_requires_launch_ready": True,
@@ -278,25 +267,16 @@ def build_manifest(
             "database_must_not_be_static_or_downloadable": True,
             "raw_html_included": False,
             "jsonl_included": False,
-            "public_responses_are_snippets_and_source_links": True,
+            "public_responses_are_source_linked_hits": True,
             "public_ui_source_attribution": True,
             "public_ui_contact_or_removal_notice_supported": True,
         },
         "public_api_contract": {
             "public_endpoints": list(PUBLIC_API_ENDPOINTS),
-            "dossier_endpoint_enabled": True,
-            "evidence_pack_endpoint_enabled": True,
-            "recap_endpoint_enabled": True,
-            "coverage_endpoint_enabled": True,
-            "compare_endpoint_enabled": True,
-            "terms_endpoint_metadata_only": True,
-            "explain_endpoint_metadata_only": True,
-            "explain_term_breakdown_metadata_only": True,
-            "claim_endpoint_enabled": True,
-            "claim_negation_cues_enabled": True,
-            "claim_cautions_enabled": True,
+            "grouped_search_endpoint_enabled": True,
+            "word_variants_always_enabled": True,
             "private_fulltext_endpoint_public": False,
-            "responses_are_bounded_by_public_caps": True,
+            "legacy_evidence_endpoints_public": False,
         },
         "deployment_runtime_contract": dict(DEPLOYMENT_RUNTIME_CONTRACT),
         "permission_note": permission_summary or {"provided": False, "exists": False, "ok": False},
@@ -316,7 +296,7 @@ def render_artifact_readme(probes: tuple[str, ...] = DEFAULT_READINESS_PROBES) -
     return f"""Thread Search public search backend artifact
 
 This directory is for server-side deployment only. The SQLite database contains
-the indexed thread text so the HTTP server can produce snippets and source links.
+the indexed thread text so the HTTP server can produce source-linked search hits.
 
 Do not serve this directory as static files. Do not put thread-search.sqlite behind
 a public download URL unless you have explicit redistribution permission.
@@ -327,16 +307,16 @@ Recommended public server command:
 
 After the server is reachable, verify the live HTTP surface:
 
-  thread-search public-smoke --base-url https://your-public-host.example --require-artifact-manifest {probe_args} --claim-pair Cuba communist
+  thread-search public-smoke --base-url https://your-public-host.example --require-artifact-manifest {probe_args}
 
 For a combined final evidence record, rerun audit with the live base URL:
 
-  thread-search audit --artifact-manifest /path/to/manifest.json --public-base-url https://your-public-host.example {probe_args} --claim-pair Cuba communist
+  thread-search audit --artifact-manifest /path/to/manifest.json --public-base-url https://your-public-host.example {probe_args}
 
 Keep --private-fulltext off for public deployments. The launch-check and
-manifest validation assume snippet-search mode. Keep the public API caps and
-request rate limit enabled, including the aggregate per-response snippet budget,
-unless explicit redistribution permission allows a broader service.
+manifest validation assume grouped source-linked search mode. Keep the public API
+caps and request rate limit enabled unless explicit redistribution permission
+allows a broader service.
 
 The public-smoke command's --require-artifact-manifest flag checks that
 /api/stats reports artifact_manifest_validated: true, proving this process

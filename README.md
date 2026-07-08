@@ -150,7 +150,7 @@ For a short-lived author preview URL from a local machine, start the manifest-ga
 THREAD_SEARCH_PUBLIC_CONTACT="mailto:contact@your-domain.tld" \
 THREAD_SEARCH_REMOVAL_REQUEST_URL="https://your-domain.tld/thread-search-removal" \
 .venv/bin/thread-search preview-start --probe Soviet --probe Cuba
-.venv/bin/thread-search preview-status --smoke --probe Soviet --probe Cuba --claim-pair Cuba communist
+.venv/bin/thread-search preview-status --smoke --probe Soviet --probe Cuba
 ```
 
 Use `preview-stop` when the review window closes. See [docs/deployment.md](docs/deployment.md) for the full audit and author-packet refresh sequence.
@@ -165,8 +165,7 @@ Use `preview-stop` when the review window closes. See [docs/deployment.md](docs/
 .venv/bin/thread-search search Cuba --alias Castro --sort timeline
 ```
 
-Search groups results to one hit per threadmark by default. Use `--all-chunks` to inspect every matching chunk, `--sort timeline` when recap order matters more than relevance, and `--alias` for known alternate names that should contribute to the same bounded result list. Exact search is attempted first; if an exact keyword has no hits, search falls back to prefix matching for simple words, so `Cuba` can surface `Cuban`. The web UI labels prefix-fallback results and offers an `Exact only` retry that quotes the term, so `Cuba` can be checked separately from `Cuban`. Use `--prefix-variants` or the web UI's Word variants checkbox when you deliberately want `Cuba` and `Cuban`-style word-prefix variants included even when exact hits exist. Common unquoted stopwords such as `the`, `of`, and `and` are ignored; put a phrase in quotes when those words need to be literal. JSON CLI/API output includes returned result counts plus total matching threadmark/chunk counts and per-term alias diagnostics, and the web UI labels prefix-fallback and opt-in prefix-variant matches so near-misses are not mistaken for exact hits.
-The web UI stays a direct search surface: multiword searches remain searches. For deterministic claim checks, use the `claim` CLI or `/api/claim` with an explicit `claim=` value. The Claim, Evidence Pack, and Recap APIs and CLI commands also accept q-only question-style or possessive claim forms such as `did Cuba turn communist` and report when the split was inferred, while plain multiword topic searches remain topic searches.
+The CLI keeps local options for deeper inspection. The public web UI/API is deliberately simpler: it accepts search text, optional threadmark range, and all-words/any-words mode, always includes word variants such as `Cuba`/`Cuban`, and returns every matching hit grouped under its source threadmark in chronological order. Public search ignores aliases, custom sorting, one-hit grouping, and explicit prefix toggles.
 
 For indexed-term suggestions:
 
@@ -178,7 +177,7 @@ For indexed-term suggestions:
 .venv/bin/thread-search explain Cuba
 ```
 
-Suggestions are prefix-based first. If a prefix has no matches and the final query term is at least four characters, the command and web API return bounded near-term suggestions with edit-distance metadata, which helps with typos without exposing story text. `terms` and `/api/terms` expose a metadata-only vocabulary index with chunk and occurrence counts, optional prefix filtering, and stopword filtering by default. `explain` and `/api/explain` show exact counts, prefix counts, resolved match mode, per-term breakdowns for multi-term queries, indexed term hints, and cautions before you open snippet-bearing evidence.
+These are local CLI diagnostics only. They are not exposed by the public web/API surface.
 
 For a metadata-only table of contents:
 
@@ -237,7 +236,7 @@ For a bounded topic dossier that combines coverage and mention windows:
 
 `dossier` is the easiest local RAG handoff shape: it contains source-linked snippets and metadata, not full threadmark bodies.
 Use `--alias` for known alternate names or nearby terms that should be bundled into the same topic dossier, mention-window review, or topic-side claim check. Use `--prefix-variants` when word-prefix variants should be included across the dossier and optional claim checks.
-The web UI renders a compact timeline recap and topic dossier after a query is active; its Topic aliases field accepts comma-separated terms, the Word variants checkbox sends `prefix_variants=1` to safe public endpoints, and the `Recap JSON`, `Report JSON`, `Dossier JSON`, `Evidence Pack JSON`, `Mentions JSON`, `Coverage JSON`, and `Explain JSON` links preserve the current safe public evidence views for local notes or scripts. The page URL tracks the active bounded search state, and `Copy link` copies a shareable link without adding API-only defaults. For broad topics, the page also shows a metadata-only list of matching threadmarks with per-term alias/prefix diagnostics so total coverage is visible without returning more story text; click a timeline bucket to narrow the current search to that threadmark range, then use `Clear range` to return to the full query.
+The public web UI does not render dossiers, recaps, aliases, term indexes, explain views, or JSON evidence links. It only renders search hits grouped by threadmark, plus the contents view.
 
 For one local note or local-only RAG prompt that combines a topic dossier with claim checks:
 
@@ -289,8 +288,7 @@ For private local reading, enable full-text threadmark pages:
 
 Keep `--private-fulltext` off for public deployments unless redistribution permission explicitly covers full text. The CLI refuses to expose private full-text mode on a non-loopback host unless you pass an explicit override flag.
 
-The public API has server-side caps for result counts, mention-window size, query length, and requests per client IP. See [docs/deployment.md](docs/deployment.md) before exposing it to the internet.
-Snippet-bearing public responses also have an aggregate snippet-character budget so a single API response cannot become a bulk text export.
+The public API has server-side caps for query length, threadmark-list size, and requests per client IP. See [docs/deployment.md](docs/deployment.md) before exposing it to the internet.
 The web UI and stats endpoint include the original Sufficient Velocity reader URL plus a public-mode notice for attribution and source navigation. For a public instance, set `--public-contact` or `THREAD_SEARCH_PUBLIC_CONTACT`, and set `--removal-request-url` or `THREAD_SEARCH_REMOVAL_REQUEST_URL`, so readers and rights holders have a visible operator/removal path. Empty values and reserved example placeholders are rejected for public/non-loopback serving, artifact export, public smoke checks, and artifact audit.
 
 For public serving, export the artifact first, then use `serve --host 0.0.0.0 --require-launch-ready --require-artifact-manifest --artifact-manifest dist/thread-search-public/manifest.json --probe Soviet --probe Cuba` so a partial, unsafe, or permission-ungated database cannot bind accidentally. Manifest-gated serving refuses runtime settings that broaden the exported public contract. Non-loopback hosts require both the launch gate and artifact manifest gate by default; use `--allow-unguarded-public-bind` or `--allow-unmanifested-public-bind` only for a deliberate private-network override.
@@ -298,13 +296,13 @@ For public serving, export the artifact first, then use `serve --host 0.0.0.0 --
 After starting a manifest-backed public-mode server, smoke-test the live HTTP surface:
 
 ```sh
-.venv/bin/thread-search public-smoke --base-url http://127.0.0.1:8765 --require-artifact-manifest --probe Soviet --probe Cuba --claim-pair Cuba communist
+.venv/bin/thread-search public-smoke --base-url http://127.0.0.1:8765 --require-artifact-manifest --probe Soviet --probe Cuba
 ```
 
-This checks the running server's noindex/robots headers, share-link and match-diagnostic UI shell, health and stats contract, validated-manifest startup signal, visible contact/removal metadata, disabled full-text route, blocked private corpus/artifact download paths, default and prefix-variant probe searches, metadata-only terms and query explain output with per-term breakdowns, bounded mentions, metadata-only coverage and compare responses, bounded dossier, evidence-pack, and recap responses, explicit claim checks, and q-only claim/evidence-pack/recap inference for the Cuba/communist example. Omit `--require-artifact-manifest` only for local loopback development before export.
+This checks the running server's noindex/robots headers, simplified search UI shell, health and stats contract, validated-manifest startup signal, visible contact/removal metadata, disabled full-text route, blocked private corpus/artifact download paths, and grouped source-linked probe searches with word variants enabled. Omit `--require-artifact-manifest` only for local loopback development before export.
 The live audit runs its own public smoke pass. With the default `60` requests/minute per-IP limiter, wait a minute between a standalone `public-smoke` run and a live `audit`, or restart the local loopback process before the audit.
 
-Before any public snippet-search deployment, run:
+Before any public source-linked search deployment, run:
 
 ```sh
 .venv/bin/thread-search permission-note --out data/permission-note.md
@@ -314,7 +312,7 @@ Before any public snippet-search deployment, run:
 .venv/bin/thread-search audit --probe Soviet --probe Cuba
 ```
 
-The first command writes a local evidence template. The second writes a no-story-text permission request draft you can send to the author or relevant site contact. After you receive a reply, edit the permission note to record the author permission, site-rule review, public deployment scope, and operator decision; keep the named checklist items so the export gate can verify that each required evidence category was addressed. The check fails while required sections or checklist items are missing, TODO placeholders remain, any box is unchecked, any checklist detail is blank or generic, date fields lack `YYYY-MM-DD`, or the operator decision is negative or too vague to confirm public snippet-search deployment.
+The first command writes a local evidence template. The second writes a no-story-text permission request draft you can send to the author or relevant site contact. After you receive a reply, edit the permission note to record the author permission, site-rule review, public deployment scope, and operator decision; keep the named checklist items so the export gate can verify that each required evidence category was addressed. The check fails while required sections or checklist items are missing, TODO placeholders remain, any box is unchecked, any checklist detail is blank or generic, date fields lack `YYYY-MM-DD`, or the operator decision is negative or too vague to confirm public source-linked search deployment.
 
 To package the private server-side database and a manifest for deployment:
 
@@ -328,7 +326,7 @@ After exporting, include the artifact manifest in the final audit:
 
 ```sh
 .venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md
-.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url http://127.0.0.1:8765 --claim-pair Cuba communist
+.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url http://127.0.0.1:8765
 ```
 
 When `audit` receives both `--artifact-manifest` and `--public-base-url`, its live smoke check requires `/api/stats` to report that the running server validated an artifact manifest at startup. For server-side deployment notes, see [docs/deployment.md](docs/deployment.md).

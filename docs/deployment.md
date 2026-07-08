@@ -52,7 +52,7 @@ Validation expects the main `Threadmarks` category to contain 269 records and on
 
 The crawler retries transient `429`, `5xx`, and network failures with conservative waits. If Sufficient Velocity sends `Retry-After`, that value is respected.
 
-Before launching a public snippet-search instance, run:
+Before launching a public source-linked search instance, run:
 
 ```sh
 .venv/bin/thread-search status
@@ -63,7 +63,7 @@ Before launching a public snippet-search instance, run:
 .venv/bin/thread-search audit --probe Soviet --probe Cuba
 ```
 
-The permission note is a local deployment record. The request draft is a convenience artifact for asking the author or site contact; it is not approval evidence by itself. After you receive a reply, fill the note in with the author permission, site-rule review, public deployment scope, and operator decision. Keep the named checklist items from the template; the check fails while required sections or checklist items are missing, TODO placeholders remain, any box is unchecked, any checklist detail is blank or generic, date fields lack `YYYY-MM-DD`, or the operator decision is negative or too vague to confirm public snippet-search deployment.
+The permission note is a local deployment record. The request draft is a convenience artifact for asking the author or site contact; it is not approval evidence by itself. After you receive a reply, fill the note in with the author permission, site-rule review, public deployment scope, and operator decision. Keep the named checklist items from the template; the check fails while required sections or checklist items are missing, TODO placeholders remain, any box is unchecked, any checklist detail is blank or generic, date fields lack `YYYY-MM-DD`, or the operator decision is negative or too vague to confirm public source-linked search deployment.
 
 For a deployment artifact where only `data/thread-search.sqlite` is present:
 
@@ -89,7 +89,7 @@ This writes `dist/thread-search-public/` with:
 - `manifest.json`: checksum, index counts, validation checks, public server caps, the public endpoint contract, and the runtime contract
 - `README.deploy.txt`: deployment warning and run command
 
-The artifact command validates the SQLite database in `--db-only` mode before copying it. With the default settings it refuses to export unless the index has 269 main threadmarks, has no excluded categories, returns a result for the readiness probe, and the permission note is complete. The manifest includes the permission-note path, byte count, SHA-256 hash, public API endpoints including `/api/terms`, `/api/explain`, `/api/dossier`, `/api/evidence-pack`, `/api/recap`, `/api/coverage`, `/api/compare`, and `/api/claim`, the metadata-only query-explain term-breakdown contract, the no-public-full-text contract, and the runtime contract, not the note body.
+The artifact command validates the SQLite database in `--db-only` mode before copying it. With the default settings it refuses to export unless the index has 269 main threadmarks, has no excluded categories, returns a result for the readiness probe, and the permission note is complete. The manifest includes the permission-note path, byte count, SHA-256 hash, the search-only public API endpoint contract, the always-on word-variant search contract, the no-public-full-text contract, and the runtime contract, not the note body.
 
 Manifest-gated serving requires the manifest to sit next to `thread-search.sqlite`. When `serve --require-artifact-manifest` is used, the CLI rejects `--private-fulltext`, rejects `--allow-public-chunk-results`, and rejects public cap values above the manifest defaults. Lower caps are allowed.
 
@@ -99,7 +99,7 @@ After exporting, include the manifest in the final audit:
 
 ```sh
 .venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md
-.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url http://127.0.0.1:8765 --claim-pair Cuba communist
+.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url http://127.0.0.1:8765
 ```
 
 The audit report is the final evidence checklist. It fails on incomplete corpus size, wrong categories, missing SQLite index, failed probe searches, failed public launch checks, incomplete permission evidence, a missing or checksum-mismatched artifact database, unexpected files in the artifact directory, an artifact manifest that does not match the private-backend deployment contract, or failed live HTTP smoke checks when `--public-base-url` is provided.
@@ -157,46 +157,16 @@ Health and stats endpoints:
 - `GET /robots.txt`
 - `GET /api/stats`
 - `GET /api/threadmarks`
-- `GET /api/terms`
-- `GET /api/terms?prefix=Cub`
-- `GET /api/explain?q=Cuba`
-- `GET /api/suggest?q=Cub`
 - `GET /api/search?q=Cuba`
-- `GET /api/search?q=Cuba&sort=timeline`
-- `GET /api/search?q=Cuba&alias=Castro`
-- `GET /api/search?q=Cuba&prefix_variants=1`
-- `GET /api/report?q=Cuba`
-- `GET /api/report?q=Cuba&sort=timeline`
-- `GET /api/report?q=Cuba&alias=Castro`
-- `GET /api/mentions?q=Cuba`
-- `GET /api/mentions?q=Cuba&sort=timeline`
-- `GET /api/mentions?q=Cuba&alias=Castro`
-- `GET /api/dossier?q=Cuba`
-- `GET /api/dossier?q=Cuba&alias=Castro`
-- `GET /api/evidence-pack?q=Cuba&claim=communist`
-- `GET /api/evidence-pack?q=did+Cuba+turn+communist`
-- `GET /api/recap?q=Cuba&claim=communist`
-- `GET /api/recap?q=did+Cuba+turn+communist`
-- `GET /api/coverage?q=Cuba`
-- `GET /api/coverage?q=Cuba&alias=Castro`
-- `GET /api/compare?q=Cuba&topic=communist`
-- `GET /api/compare?q=Cuba&q=communist&q=Soviet`
-- `GET /api/claim?q=Cuba&claim=communist`
-- `GET /api/claim?q=Cuba&claim=communist&alias=Castro`
-- `GET /api/claim?q=Cuba&claim=communist&prefix_variants=1`
-- `GET /api/claim?q=did+Cuba+turn+communist`
+- `GET /api/search?q=Cuba&mode=any`
+- `GET /api/search?q=Cuba&from=10&to=25`
 
 `/healthz` validates that the SQLite index is readable and contains indexed threadmarks/chunks. It returns `503` when the database is missing, corrupt, or not ready. The Docker image uses this endpoint for its container healthcheck.
 
-By default, search results return snippets and source links only. The local full-text route is disabled.
-
-The public search API also groups results to one hit per threadmark by default. Search and report responses include match diagnostics: exact matching is attempted first, prefix-fallback matches are labeled when exact matching returns no hits, and the web UI offers an `Exact only` quoted retry for simple prefix-fallback searches. Common unquoted stopwords are ignored in search terms, while quoted phrases keep their words literal. Direct search accepts repeated `alias=` parameters, can be sorted by timeline order when recap order matters more than relevance, and reports total matching threadmark/chunk counts plus per-term diagnostics separately from the returned snippet count. `prefix_variants=1` explicitly includes word-prefix variants such as `Cuba` plus `Cuban` even when exact hits exist; responses echo `prefix_variants` and use `match_kind: "prefix-variants"` so broadened retrieval is auditable. The report endpoint aggregates coverage by threadmark and representative snippets without returning full chunks; it also accepts repeated `alias=` parameters with per-term diagnostics. The dossier endpoint combines that coverage with bounded concordance windows for local RAG-style handoff without returning full threadmark bodies; it accepts repeated `alias=` parameters for known alternate terms, and the web UI renders a compact timeline recap and dossier on the search page while keeping query-aware Recap, Report, Dossier, Evidence Pack, Mentions, Coverage, and Explain JSON links available. The mentions endpoint also accepts repeated `alias=` parameters, returning merged bounded mention windows plus per-term diagnostics without full bodies. The evidence-pack endpoint combines the bounded dossier shape with optional claim checks under one aggregate snippet budget. The recap endpoint reuses that bounded retrieval in a timeline-oriented shape for reader review. The UI Topic aliases field serializes comma-separated terms into those repeated `alias=` parameters, the Word variants checkbox sends `prefix_variants=1`, the page URL tracks the active bounded search state, and `Copy link` copies a shareable link without adding API-only defaults. Dossier totals report overall matched coverage while displayed threadmark and mention lists remain bounded by public caps. The coverage endpoint is metadata-only: it returns matching threadmark titles, source links, dates/authors, hit counts, match diagnostics, and timeline buckets, but no snippets or bodies. The compare endpoint is also metadata-only: it returns per-topic coverage totals, first/last source-linked threadmarks, buckets, all-topic overlap, and pairwise overlap counts without snippets or bodies; pass topics as repeated `q=` values or `topic=` values. Reports, dossiers, and mention windows can be sorted by timeline order for recap-style review. The claim endpoint adds a deterministic evidence label to bounded claim-overlap checks, including a distinct adjacent-chunk tier, and reports exact-versus-prefix matching for each side, exact primary-query counts, topic-side alias diagnostics, proximity/chunk-distance notes, lexical negation-cue counts near highlighted claim terms in returned snippets, and compact caution codes for prefix-expanded, prefix-only topic, weak-proximity, missing-side, no-overlap, or negated evidence. When `claim=` is omitted, `/api/claim` can infer a simple claim pair from q-only values such as `did Cuba turn communist`, and reports `claim_inferred_from_query` plus the original query. The evidence-pack and recap endpoints also infer q-only question-style or possessive claim forms such as `did Cuba turn communist` or `Cuba's communist` when no explicit claim is supplied, but keep plain multiword queries such as `Soviet Union` as topic searches. The web UI remains a direct search surface and does not open claim checks from search terms. The threadmark-list, term-index, query-explain, and suggestion endpoints are metadata-only; `/api/explain` returns exact counts, prefix counts, resolved match mode, per-term breakdowns for multi-term queries, indexed term hints, and cautions, `/api/terms` returns vocabulary counts with optional prefix and minimum-chunk filters, and suggestions prefer prefix matches and fall back to bounded near-term vocabulary suggestions with edit-distance metadata when a typo-like term has no prefix matches. `/api/stats` includes the source reader URL, source host, and public access mode; the web UI links back to the Sufficient Velocity reader from the page header and shows a snippet/source-link notice above results.
+Public search returns source-linked hits grouped by the threadmark where each hit appears. Threadmark groups are ordered chronologically from oldest to newest, and every hit in each matching threadmark is returned. Word variants are always enabled, so searches such as `Cuba` can surface `Cuban` without a separate UI/API toggle. Public search accepts only the query text, all-words/any-words mode, and optional `from`/`to` threadmark-order filters; aliases, custom sort order, one-hit grouping, explicit prefix toggles, and evidence JSON endpoints are not part of the public surface. `/api/stats` includes the source reader URL, source host, and public access mode; the web UI links back to the Sufficient Velocity reader from the page header.
 
 Public API caps are enforced server-side:
 
-- Search results default to at most `30`.
-- Report and dossier threadmark entries default to at most `100`.
-- Mention and dossier windows default to at most `50`.
 - Threadmark metadata rows default to at most `300`.
 - Query strings default to at most `120` normalized characters.
 - Mention windows default to at most `320` characters before boundary adjustment.
@@ -244,7 +214,7 @@ For a public process, start the server with the launch gate enabled:
 After the process is reachable, smoke-test the live HTTP surface:
 
 ```sh
-.venv/bin/thread-search public-smoke --base-url http://127.0.0.1:8765 --require-artifact-manifest --probe Soviet --probe Cuba --claim-pair Cuba communist
+.venv/bin/thread-search public-smoke --base-url http://127.0.0.1:8765 --require-artifact-manifest --probe Soviet --probe Cuba
 ```
 
 For author review, generate a no-story-text packet with the live prototype URL, safety scope, verification hashes, and demo links:
@@ -253,12 +223,12 @@ For author review, generate a no-story-text packet with the live prototype URL, 
 .venv/bin/thread-search author-review --offline --public-base-url http://127.0.0.1:8765 --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --deploy-bundle-manifest dist/deploy-bundles/deploy-bundle-manifest.json --out data/author-review.md
 ```
 
-This verifies the running server still has `noindex`/`nofollow` headers, disallow-all `robots.txt`, and the share-link plus match-diagnostic UI shell; reports public snippet/source-link mode, contact/removal metadata, and the validated-manifest startup signal through `/api/stats`; keeps the private full-text threadmark API unavailable; blocks common private corpus/artifact download paths; returns results for the launch probes; keeps `/api/terms`, `/api/explain`, `/api/coverage`, and `/api/compare` metadata-only; keeps dossier, evidence-pack, and recap responses bounded without body text; and keeps explicit claim checks plus q-only claim/evidence-pack/recap inference bounded for the Cuba/communist example. For local loopback development before artifact export, omit `--require-artifact-manifest`.
+This verifies the running server still has `noindex`/`nofollow` headers, disallow-all `robots.txt`, and the simplified search UI shell; reports public source-linked search mode, contact/removal metadata, and the validated-manifest startup signal through `/api/stats`; keeps the private full-text threadmark API unavailable; blocks common private corpus/artifact download paths; and returns grouped source-linked results for the launch probes with word variants enabled. For local loopback development before artifact export, omit `--require-artifact-manifest`.
 The live audit runs its own public smoke pass. With the default `60` requests/minute per-IP limiter, wait a minute between a standalone `public-smoke` run and a live `audit`, or restart the local loopback process before the audit.
 
 ## Ephemeral Author Preview
 
-For a short-lived author review link from a local machine, use the preview helper. It starts the same manifest-gated loopback server as the production command, then optionally opens a `localtunnel` URL through `npx`. The SQLite artifact still stays server-side and private; the public URL only reaches the bounded snippet/source-link app.
+For a short-lived author review link from a local machine, use the preview helper. It starts the same manifest-gated loopback server as the production command, then optionally opens a `localtunnel` URL through `npx`. The SQLite artifact still stays server-side and private; the public URL only reaches the source-linked search app.
 
 ```sh
 THREAD_SEARCH_PUBLIC_CONTACT="mailto:contact@your-domain.tld" \
@@ -277,13 +247,13 @@ THREAD_SEARCH_REMOVAL_REQUEST_URL="https://your-domain.tld/thread-search-removal
 The helper records process IDs and the public URL in `data/public-preview-state.json`. Check the live preview and run the same public smoke checks with:
 
 ```sh
-.venv/bin/thread-search preview-status --smoke --probe Soviet --probe Cuba --claim-pair Cuba communist
+.venv/bin/thread-search preview-status --smoke --probe Soviet --probe Cuba
 ```
 
 Then write durable evidence and regenerate the author packet against the public preview URL:
 
 ```sh
-.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url "$PUBLIC_PREVIEW_URL" --claim-pair Cuba communist --json --out data/public-preview-audit.json
+.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url "$PUBLIC_PREVIEW_URL" --json --out data/public-preview-audit.json
 .venv/bin/thread-search author-review --offline --public-base-url "$PUBLIC_PREVIEW_URL" --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --deploy-bundle-manifest dist/deploy-bundles/deploy-bundle-manifest.json --probe Soviet --probe Cuba --out data/author-review.md
 ```
 
@@ -361,8 +331,8 @@ Before enabling the service, edit `/etc/thread-search/thread-search.env` and rep
 After DNS and HTTPS are live through nginx, run both public checks:
 
 ```sh
-.venv/bin/thread-search public-smoke --base-url https://your-domain.tld --require-artifact-manifest --probe Soviet --probe Cuba --claim-pair Cuba communist
-.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url https://your-domain.tld --claim-pair Cuba communist --json --out data/production-audit.json
+.venv/bin/thread-search public-smoke --base-url https://your-domain.tld --require-artifact-manifest --probe Soviet --probe Cuba
+.venv/bin/thread-search audit --probe Soviet --probe Cuba --artifact-manifest dist/thread-search-public/manifest.json --permission-note data/permission-note.md --public-base-url https://your-domain.tld --json --out data/production-audit.json
 ```
 
 An nginx starter config is available at `deploy/nginx-thread-search.conf.example`. It keeps nginx as the only internet-facing process, proxies to `127.0.0.1:8765`, applies a host-level `/api/` rate limit, repeats noindex/security headers, and denies obvious private artifact paths before proxying.

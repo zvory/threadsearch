@@ -254,7 +254,7 @@ def build_bundle_manifest(
             "serve_requires_artifact_manifest": True,
             "app_binds_loopback_behind_proxy": True,
             "private_fulltext_public": False,
-            "public_responses_are_bounded_snippets_and_source_links": True,
+            "public_responses_are_source_linked_hits": True,
         },
     }
 

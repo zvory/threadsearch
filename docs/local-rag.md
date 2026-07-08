@@ -29,9 +29,9 @@ Useful variants:
 .venv/bin/thread-search context Cuba communism --mode any --max-chars 1200
 ```
 
-The `search` JSON output emits source URLs, bounded snippets, total matching threadmark/chunk counts, alias diagnostics, and match diagnostics without full threadmark bodies. Common unquoted stopwords such as `the`, `of`, and `and` are ignored, while quoted phrases keep their words literal. Use timeline sort when you want the direct hits in thread order, and `--alias` when alternate names should contribute to the same capped result list. When a simple term falls back to prefix matching, the web UI offers an `Exact only` retry that quotes the term so near-misses such as `Cuba` -> `Cuban` can be checked separately. Use `explain` or `/api/explain` before broadening a sparse query; it returns exact counts, prefix counts, resolved match mode, per-term breakdowns for multi-term queries, indexed term hints, and cautions without snippets or body text. The `context` command emits source URLs and bounded chunks. That output is intended for local reading, note-taking, or a local-only RAG script.
+The local `search` JSON output emits source URLs, bounded snippets, total matching threadmark/chunk counts, alias diagnostics, and match diagnostics without full threadmark bodies. Common unquoted stopwords such as `the`, `of`, and `and` are ignored, while quoted phrases keep their words literal. Use timeline sort when you want the direct hits in thread order, and `--alias` when alternate names should contribute to the same capped result list. Use the local `explain` command before broadening a sparse query; it returns exact counts, prefix counts, resolved match mode, per-term breakdowns for multi-term queries, indexed term hints, and cautions without snippets or body text. The `context` command emits source URLs and bounded chunks. That output is intended for local reading, note-taking, or a local-only RAG script.
 
-Use `--prefix-variants` or `prefix_variants=1` on the public APIs when you deliberately want word-prefix variants included even when exact hits exist, such as `Cuba` plus `Cuban`. Responses report `match_kind: "prefix-variants"` so this broader retrieval is visible in notes and scripts. Without that flag, exact-first search still falls back to prefix only when exact matching returns no hits.
+Use `--prefix-variants` locally when you deliberately want word-prefix variants included even when exact hits exist, such as `Cuba` plus `Cuban`. Responses report `match_kind: "prefix-variants"` so this broader retrieval is visible in notes and scripts. The public search surface always enables word variants and does not expose a separate toggle.
 
 Use `suggest` when you are not sure which exact terms exist in the index:
 
@@ -54,9 +54,9 @@ Use `report` when you need to remember everywhere a topic appears:
 .venv/bin/thread-search report Cuba --alias Castro --sort timeline
 ```
 
-Reports aggregate matching chunks by threadmark and include source links, hit counts, and representative snippets. Use repeated `--alias` values when alternate names should contribute to the same capped report. Exact search is attempted first; when a simple-word query only matches through prefix fallback, reports include that diagnostic so a near-miss such as `Cuba` -> `Cuban` stays visible. The public web UI uses the same aggregation to show how broadly a search term appears without serving full text.
+Reports aggregate matching chunks by threadmark and include source links, hit counts, and representative snippets. Use repeated `--alias` values when alternate names should contribute to the same capped report. Exact search is attempted first; when a simple-word query only matches through prefix fallback, reports include that diagnostic so a near-miss such as `Cuba` -> `Cuban` stays visible. The public web UI is simpler: it shows every matching hit grouped by source threadmark in chronological order.
 
-`suggest` and `/api/suggest` return indexed vocabulary metadata only. They prefer prefix matches and, when a prefix has no matches, can return bounded near-term suggestions for query terms of at least four characters with edit-distance metadata. Use those near suggestions for typo recovery before widening a search. `terms` and `/api/terms` return a metadata-only vocabulary index with chunk counts, occurrence counts, optional prefix filtering, and stopword filtering by default; use it to discover durable keywords without exposing story text. `explain` combines those diagnostics into a public-safe query-resolution report.
+`suggest`, `terms`, and `explain` are local CLI diagnostics. `suggest` can return near-term suggestions for typo recovery, `terms` returns indexed vocabulary counts, and `explain` combines those diagnostics into a query-resolution report without exposing full bodies.
 
 Use `--sort timeline` when you want recap order instead of the default coverage order.
 
@@ -106,7 +106,7 @@ Use `dossier` when you want one bounded retrieval bundle for a local note, promp
 .venv/bin/thread-search dossier Cuba --alias Castro --format json
 ```
 
-A dossier combines threadmark coverage and concordance windows. It is still source-linked snippet retrieval, not a generated answer, and it does not include full threadmark bodies. Use repeated `--alias` values for known alternate names, people, places, or spellings that should be reviewed as one topic bundle, and use `--prefix-variants` when word-prefix variants should be reviewed as part of that same topic. The web UI renders the same bounded dossier plus a timeline recap on the search page; its Topic aliases field accepts comma-separated terms, the Word variants checkbox sends `prefix_variants=1`, and the Recap/Report/Dossier/Evidence Pack/Mentions/Coverage/Explain JSON links preserve the current safe public evidence views for local notes or scripts, including alias-aware Report and Mentions JSON. The page URL tracks the active bounded search state, and `Copy link` copies a shareable link without adding API-only defaults. For broad topics, total coverage counts stay separate from the bounded threadmark and mention lists shown in the page, and the metadata-only coverage list can show all matching threadmark titles/source links without additional story text. Coverage term diagnostics show which alias, prefix fallback, or opt-in prefix-variant mode contributed to the hit map. Its timeline buckets are clickable range filters for drilling into one part of the quest, and `Clear range` restores the full query.
+A dossier combines threadmark coverage and concordance windows. It is still source-linked snippet retrieval, not a generated answer, and it does not include full threadmark bodies. Use repeated `--alias` values for known alternate names, people, places, or spellings that should be reviewed as one topic bundle, and use `--prefix-variants` when word-prefix variants should be reviewed as part of that same topic. The public web UI does not expose dossiers, aliases, recaps, or evidence JSON links; it only exposes grouped search hits and the contents view.
 
 Use `evidence-pack` when you want a single local artifact that combines the dossier with one or more claim checks:
 
@@ -116,9 +116,9 @@ Use `evidence-pack` when you want a single local artifact that combines the doss
 .venv/bin/thread-search evidence-pack "did Cuba turn communist" --format json
 ```
 
-This is designed for local notes or local-only RAG prompts. It is bounded retrieval evidence with source links, not a generated answer, and it does not include full threadmark bodies. When no explicit `--claim` is supplied, question-style or possessive q-only forms such as `did Cuba turn communist` and `Cuba's communist` are split into topic and claim; plain multiword topics remain topic searches. The public `/api/evidence-pack` endpoint returns the same shape under the server's aggregate snippet budget.
+This is designed for local notes or local-only RAG prompts. It is bounded retrieval evidence with source links, not a generated answer, and it does not include full threadmark bodies. When no explicit `--claim` is supplied, question-style or possessive q-only forms such as `did Cuba turn communist` and `Cuba's communist` are split into topic and claim; plain multiword topics remain topic searches.
 
-Use `recap` when you want a compact timeline-oriented evidence view for reading or sharing a public-safe JSON payload:
+Use `recap` when you want a compact timeline-oriented local evidence view:
 
 ```sh
 .venv/bin/thread-search recap Cuba --claim communist
@@ -126,7 +126,7 @@ Use `recap` when you want a compact timeline-oriented evidence view for reading 
 .venv/bin/thread-search recap "did Cuba turn communist" --format json
 ```
 
-`recap` reuses the dossier and claim-check retrieval but emphasizes timeline snippets. It is extractive only: no generated answer, no full threadmark bodies, and source links remain the authority. Like evidence packs, recap accepts q-only question-style or possessive claim forms when no explicit `--claim` is supplied. The public `/api/recap` endpoint returns the same bounded shape under the server's aggregate snippet budget.
+`recap` reuses the dossier and claim-check retrieval but emphasizes timeline snippets. It is extractive only: no generated answer, no full threadmark bodies, and source links remain the authority. Like evidence packs, recap accepts q-only question-style or possessive claim forms when no explicit `--claim` is supplied.
 
 ## Claim Checks
 
@@ -139,9 +139,9 @@ Use `claim` when you need a source-linked evidence label for a specific claim pa
 .venv/bin/thread-search claim "did Cuba turn communist" --format json
 ```
 
-`claim` labels the pair as strong same-chunk overlap, adjacent-chunk overlap, weak same-threadmark-only overlap, no overlap, or missing query terms. Claim output reports whether each side used exact matching or prefix fallback, exact primary-query counts, topic-side alias diagnostics, how many bounded evidence snippets are shown versus the total overlap count, proximity/chunk-distance notes for each evidence row, whether returned evidence snippets contain lexical negation cues near highlighted claim terms, and compact caution codes for prefix-expanded, prefix-only topic, weak-proximity, missing-side, no-overlap, or negated evidence. A `topic-exact-missing` caution means the requested topic had no exact indexed hits and the evidence came from prefix variants such as `Cuba` -> `Cuban`. The CLI and public API can infer a simple claim-pair split from q-only forms and report `claim_inferred_from_query`. Treat this as retrieval evidence only: it helps decide which source links to inspect, and it should not be read as a semantic or legal conclusion.
+`claim` labels the pair as strong same-chunk overlap, adjacent-chunk overlap, weak same-threadmark-only overlap, no overlap, or missing query terms. Claim output reports whether each side used exact matching or prefix fallback, exact primary-query counts, topic-side alias diagnostics, how many bounded evidence snippets are shown versus the total overlap count, proximity/chunk-distance notes for each evidence row, whether returned evidence snippets contain lexical negation cues near highlighted claim terms, and compact caution codes for prefix-expanded, prefix-only topic, weak-proximity, missing-side, no-overlap, or negated evidence. A `topic-exact-missing` caution means the requested topic had no exact indexed hits and the evidence came from prefix variants such as `Cuba` -> `Cuban`. The CLI can infer a simple claim-pair split from q-only forms and report `claim_inferred_from_query`. Treat this as retrieval evidence only: it helps decide which source links to inspect, and it should not be read as a semantic or legal conclusion.
 
-The web UI remains a direct search surface and does not open claim checks from search terms. Use the public `/api/claim` endpoint or `claim` CLI for bounded claim evidence. The Evidence Pack and Recap APIs and CLI commands accept q-only question-style or possessive claim forms when no explicit claim is supplied, while plain multiword topic searches remain topic searches.
+The web UI remains a direct search surface and does not open claim checks from search terms. Use the local `claim`, `evidence-pack`, and `recap` CLI commands for those workflows.
 
 For private browser-based reading, run:
 

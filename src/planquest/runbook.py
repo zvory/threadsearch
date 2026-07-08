@@ -183,8 +183,7 @@ def render_runbook(
             "",
             "```sh",
             f".venv/bin/thread-search preview-start {probe_args}".strip(),
-            ".venv/bin/thread-search preview-status --smoke "
-            f"{probe_args} --claim-pair Cuba communist".strip(),
+            f".venv/bin/thread-search preview-status --smoke {probe_args}".strip(),
             "```",
             "",
             "When the review window closes:",
@@ -194,8 +193,6 @@ def render_runbook(
             "```",
             "",
             "The live audit runs its own public smoke pass. With the default 60 requests/minute per-IP limiter, wait a minute between a standalone public-smoke run and a live audit, or restart the local loopback process before the audit.",
-            "",
-            "For the project-specific disputed-claim check, add `--claim-pair Cuba communist` to the smoke and live audit commands.",
             "",
             "For a combined final evidence record, rerun the audit with the live base URL:",
             "",

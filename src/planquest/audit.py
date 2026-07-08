@@ -255,7 +255,7 @@ def launch_item(launch: dict[str, Any]) -> AuditItem:
     return AuditItem(
         key="public_launch",
         status="pass" if passed else "fail",
-        summary="Public snippet-search launch check passes." if passed else "Public snippet-search launch check fails.",
+        summary="Public source-linked search launch check passes." if passed else "Public source-linked search launch check fails.",
         evidence={
             "checks": launch.get("checks", []),
             "errors": launch.get("errors", []),
@@ -368,28 +368,21 @@ def artifact_item(path: Path, expected_threadmarks: int) -> AuditItem:
     endpoint_contract_ok = (
         isinstance(public_endpoints, list)
         and set(PUBLIC_API_ENDPOINTS).issubset(set(public_endpoints))
-        and "/api/dossier" in public_endpoints
-        and "/api/evidence-pack" in public_endpoints
-        and "/api/recap" in public_endpoints
-        and "/api/coverage" in public_endpoints
-        and "/api/compare" in public_endpoints
-        and "/api/terms" in public_endpoints
-        and "/api/explain" in public_endpoints
-        and "/api/claim" in public_endpoints
+        and "/api/search" in public_endpoints
+        and "/api/threadmarks" in public_endpoints
+        and "/api/dossier" not in public_endpoints
+        and "/api/evidence-pack" not in public_endpoints
+        and "/api/recap" not in public_endpoints
+        and "/api/coverage" not in public_endpoints
+        and "/api/compare" not in public_endpoints
+        and "/api/terms" not in public_endpoints
+        and "/api/explain" not in public_endpoints
+        and "/api/claim" not in public_endpoints
         and "/api/threadmark/{post_id}" not in public_endpoints
-        and api_contract.get("dossier_endpoint_enabled") is True
-        and api_contract.get("evidence_pack_endpoint_enabled") is True
-        and api_contract.get("recap_endpoint_enabled") is True
-        and api_contract.get("coverage_endpoint_enabled") is True
-        and api_contract.get("compare_endpoint_enabled") is True
-        and api_contract.get("terms_endpoint_metadata_only") is True
-        and api_contract.get("explain_endpoint_metadata_only") is True
-        and api_contract.get("explain_term_breakdown_metadata_only") is True
-        and api_contract.get("claim_endpoint_enabled") is True
-        and api_contract.get("claim_negation_cues_enabled") is True
-        and api_contract.get("claim_cautions_enabled") is True
+        and api_contract.get("grouped_search_endpoint_enabled") is True
+        and api_contract.get("word_variants_always_enabled") is True
         and api_contract.get("private_fulltext_endpoint_public") is False
-        and api_contract.get("responses_are_bounded_by_public_caps") is True
+        and api_contract.get("legacy_evidence_endpoints_public") is False
     )
     runtime_contract_ok = (
         isinstance(runtime_contract, dict)
@@ -407,7 +400,7 @@ def artifact_item(path: Path, expected_threadmarks: int) -> AuditItem:
         and handling.get("database_must_not_be_static_or_downloadable") is True
         and handling.get("raw_html_included") is False
         and handling.get("jsonl_included") is False
-        and handling.get("public_responses_are_snippets_and_source_links") is True
+        and handling.get("public_responses_are_source_linked_hits") is True
         and handling.get("public_ui_source_attribution") is True
         and handling.get("public_ui_contact_or_removal_notice_supported") is True
         and endpoint_contract_ok
