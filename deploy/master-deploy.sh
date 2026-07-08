@@ -19,12 +19,12 @@ resolve_python() {
     printf '%s\n' "$PYTHON"
     return
   fi
-  if [[ -x ".venv/bin/python" ]]; then
-    printf '%s\n' ".venv/bin/python"
-    return
+  if [[ ! -x ".venv/bin/python" ]]; then
+    command -v python3 >/dev/null 2>&1 || fail "required command not found: python3"
+    log "creating .venv with python3"
+    python3 -m venv .venv
   fi
-  command -v python3 >/dev/null 2>&1 || fail "required command not found: python3"
-  command -v python3
+  printf '%s\n' ".venv/bin/python"
 }
 
 resolve_flyctl() {
@@ -129,10 +129,11 @@ require_command git
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
-PYTHON_BIN="$(resolve_python)"
 FLY_BIN="$(resolve_flyctl)"
 
 require_master_head
+
+PYTHON_BIN="$(resolve_python)"
 
 DEPLOY_SHA="$(git rev-parse HEAD)"
 DEPLOY_SHA_SHORT="$(git rev-parse --short=12 HEAD)"

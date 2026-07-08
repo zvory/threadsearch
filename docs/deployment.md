@@ -135,7 +135,7 @@ git checkout master
 THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh
 ```
 
-The wrapper refuses to deploy unless the checkout is on `master`, the working tree is clean, and the local `master` can be fast-forwarded to exactly `origin/master`. It then installs the package with dev dependencies, runs `pytest -q`, requires `dist/thread-search-public/thread-search.sqlite`, `manifest.json`, and `README.deploy.txt`, refreshes the upload bundles, runs `deploy-bundle-check`, deploys with `flyctl deploy --remote-only`, and writes a local receipt under `data/deployments/`.
+The wrapper refuses to deploy unless the checkout is on `master`, the working tree is clean, and the local `master` can be fast-forwarded to exactly `origin/master`. It then creates or reuses `.venv`, installs the package with dev dependencies, runs `pytest -q`, requires `dist/thread-search-public/thread-search.sqlite`, `manifest.json`, and `README.deploy.txt`, refreshes the upload bundles, runs `deploy-bundle-check`, deploys with `flyctl deploy --remote-only`, and writes a local receipt under `data/deployments/`.
 
 Set `THREAD_SEARCH_PUBLIC_BASE_URL` to run the live `public-smoke` check after Fly reports a successful deploy. Leave it unset only when the target URL is not yet reachable. You can pass additional Fly deploy flags after the script name, for example:
 

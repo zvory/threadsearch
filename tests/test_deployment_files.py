@@ -61,6 +61,7 @@ def test_master_deploy_script_deploys_only_verified_master() -> None:
     assert 'git merge --ff-only "$DEPLOY_REMOTE/$DEPLOY_BRANCH"' in script
     assert 'dist/thread-search-public' in script
     assert 'thread-search.sqlite manifest.json README.deploy.txt' in script
+    assert 'python3 -m venv .venv' in script
     assert '"$PYTHON_BIN" -m pytest -q' in script
     assert '"$PYTHON_BIN" -m planquest.cli deploy-bundle' in script
     assert '"$PYTHON_BIN" -m planquest.cli deploy-bundle-check' in script
