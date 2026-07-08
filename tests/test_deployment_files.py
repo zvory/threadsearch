@@ -4,6 +4,15 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_agent_guidance_requires_master_deploy_after_integration() -> None:
+    for guidance_name in ("AGENTS.md", "CLAUDE.md"):
+        guidance = (ROOT / guidance_name).read_text(encoding="utf-8")
+
+        assert "After integrating to `master`" in guidance
+        assert "origin/master" in guidance
+        assert "THREAD_SEARCH_PUBLIC_BASE_URL=https://planquest-search.net deploy/master-deploy.sh" in guidance
+
+
 def test_compose_mounts_artifact_privately_and_readonly() -> None:
     compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
 
