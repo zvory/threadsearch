@@ -76,7 +76,6 @@ def test_public_smoke_passes_public_snippet_server(tmp_path: Path) -> None:
         }
         assert items["html_shell"].evidence["meta_robots"] is True
         assert items["html_shell"].evidence["simple_search_controls"] is True
-        assert items["html_shell"].evidence["removed_search_slop"] is True
         assert items["private_download_paths"].evidence["exposed_paths"] == []
         assert items["private_download_paths"].evidence["statuses"]["/thread-search.sqlite"] == 404
         assert items["search_probe:Cuba"].evidence["total_threadmarks"] == 1

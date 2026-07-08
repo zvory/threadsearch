@@ -91,7 +91,7 @@ This writes `dist/thread-search-public/` with:
 
 The artifact command validates the SQLite database in `--db-only` mode before copying it. With the default settings it refuses to export unless the index has 269 main threadmarks, has no excluded categories, returns a result for the readiness probe, and the permission note is complete. The manifest includes the permission-note path, byte count, SHA-256 hash, the search-only public API endpoint contract, the always-on word-variant search contract, the no-public-full-text contract, and the runtime contract, not the note body.
 
-Manifest-gated serving requires the manifest to sit next to `thread-search.sqlite`. When `serve --require-artifact-manifest` is used, the CLI rejects `--private-fulltext`, rejects `--allow-public-chunk-results`, and rejects public cap values above the manifest defaults. Lower caps are allowed.
+Manifest-gated serving requires the manifest to sit next to `thread-search.sqlite`. When `serve --require-artifact-manifest` is used, the CLI rejects `--private-fulltext` and rejects public cap values above the manifest defaults. Lower caps are allowed.
 
 Treat `dist/thread-search-public/thread-search.sqlite` as private backend data. It contains full indexed thread text for server-side snippet generation, so it must be mounted into the service and kept away from static hosting, public object storage, and direct download URLs unless explicit redistribution permission covers that. Final artifact audit also fails if the artifact directory contains files outside the expected backend set, such as extracted JSONL, raw HTML, notes, or other static assets.
 

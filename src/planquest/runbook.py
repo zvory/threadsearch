@@ -220,7 +220,7 @@ def render_runbook(
             "- Do not serve `dist/thread-search-public/` as static files.",
             "- Do not deploy publicly until the permission note is complete and the final audit passes.",
             "- Keep `--private-fulltext` off for public deployments unless explicit permission covers full-text redistribution.",
-            "- Keep public result, mention-window, query-length, and rate-limit caps enabled.",
+            "- Keep public result, threadmark-list, query-length, and rate-limit caps enabled.",
             "- Do not send thread text to hosted embedding or LLM APIs unless author permission and site rules explicitly allow it.",
         ]
     )

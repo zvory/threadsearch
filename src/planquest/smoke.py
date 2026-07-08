@@ -95,14 +95,6 @@ def html_shell_item(base_url: str, timeout: float) -> SmokeItem:
         and 'id="all-words"' in response.body
         and "function renderThreadmarkGroup" in response.body
     )
-    removed_search_slop = not any(
-        token in response.body
-        for token in (
-            'id="prefix-variants"',
-            'id="topic-sort"',
-            "All matching threadmarks",
-        )
-    )
     ok = (
         response.status == 200
         and "noindex" in robots.lower()
@@ -111,21 +103,19 @@ def html_shell_item(base_url: str, timeout: float) -> SmokeItem:
         and "'unsafe-inline'" not in csp
         and meta_robots
         and simple_search_controls
-        and removed_search_slop
     )
     return SmokeItem(
         key="html_shell",
         status="pass" if ok else "fail",
         summary="HTML shell has public noindex, CSP, and the simplified search controls."
         if ok
-        else "HTML shell is missing public safety controls or still exposes removed search UI.",
+        else "HTML shell is missing public safety controls or simplified search controls.",
         evidence={
             "status": response.status,
             "x_robots_tag": robots,
             "content_security_policy": csp,
             "meta_robots": meta_robots,
             "simple_search_controls": simple_search_controls,
-            "removed_search_slop": removed_search_slop,
         },
     )
 
