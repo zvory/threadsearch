@@ -11,7 +11,7 @@ import time
 from collections import defaultdict, deque
 from threading import Lock
 from typing import Callable, Deque
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse, urlsplit, urlunsplit
 
 from .config import TARGET_READER_URL
 from .db import connect_readonly
@@ -235,6 +235,7 @@ class SearchHandler(BaseHTTPRequestHandler):
                     item = asdict(result)
                     item["local_url"] = f"/threadmark/{result.post_id}" if self.allow_private_fulltext else None
                     item["snippet_html"] = snippet_html(item["snippet"])
+                    item["highlight_url"] = highlighted_source_url(result.source_url, result.snippet)
                     results.append(item)
             payload = {
                 "query": query,
@@ -363,6 +364,7 @@ def group_search_results(results: list[dict[str, object]]) -> list[dict[str, obj
                     "chunk_index": item.get("chunk_index"),
                     "snippet": item.get("snippet"),
                     "snippet_html": item.get("snippet_html"),
+                    "highlight_url": item.get("highlight_url"),
                     "source_url": item.get("source_url"),
                 }
             )
@@ -551,6 +553,98 @@ def bounded_query(value: str, max_chars: int) -> str:
 def snippet_html(snippet: str) -> str:
     escaped = html.escape(snippet)
     return escaped.replace("\x01", "<mark>").replace("\x02", "</mark>")
+
+
+def highlighted_source_url(source_url: str, snippet: str) -> str:
+    directive = text_fragment_directive(snippet)
+    if not directive:
+        return source_url
+    parsed = urlsplit(source_url)
+    base_fragment = parsed.fragment.split(":~:", 1)[0]
+    fragment = f"{base_fragment}:~:{directive}" if base_fragment else f":~:{directive}"
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, parsed.query, fragment))
+
+
+def text_fragment_directive(snippet: str) -> str:
+    start_marker = snippet.find("\x01")
+    if start_marker < 0:
+        return ""
+    end_marker = snippet.find("\x02", start_marker + 1)
+    if end_marker < 0:
+        return ""
+
+    separator = " ... "
+    segment_start = snippet.rfind(separator, 0, start_marker)
+    segment_start = 0 if segment_start < 0 else segment_start + len(separator)
+    segment_end = snippet.find(separator, end_marker + 1)
+    segment_end = len(snippet) if segment_end < 0 else segment_end
+    segment = snippet[segment_start:segment_end]
+
+    text, target_start, target_end = first_marked_span(segment)
+    if target_start < 0 or target_end <= target_start:
+        return ""
+
+    target = normalize_text_fragment_part(text[target_start:target_end])
+    if not target:
+        return ""
+    prefix = normalize_text_fragment_part(fragment_context_before(text, target_start))
+    suffix = normalize_text_fragment_part(fragment_context_after(text, target_end))
+
+    encoded_target = quote(target, safe="")
+    if prefix and suffix:
+        return f"text={quote(prefix, safe='')}-,{encoded_target},-{quote(suffix, safe='')}"
+    if prefix:
+        return f"text={quote(prefix, safe='')}-,{encoded_target}"
+    if suffix:
+        return f"text={encoded_target},-{quote(suffix, safe='')}"
+    return f"text={encoded_target}"
+
+
+def first_marked_span(value: str) -> tuple[str, int, int]:
+    text_parts: list[str] = []
+    text_length = 0
+    target_start = -1
+    target_end = -1
+    in_first_mark = False
+    first_mark_closed = False
+    for char in value:
+        if char == "\x01":
+            if not first_mark_closed and target_start < 0:
+                target_start = text_length
+                in_first_mark = True
+            continue
+        if char == "\x02":
+            if in_first_mark:
+                target_end = text_length
+                in_first_mark = False
+                first_mark_closed = True
+            continue
+        text_parts.append(char)
+        text_length += len(char)
+    return "".join(text_parts), target_start, target_end
+
+
+def fragment_context_before(text: str, index: int, max_chars: int = 48) -> str:
+    context = text[max(0, index - max_chars) : index]
+    if len(context) == max_chars:
+        stripped = context.lstrip()
+        first_space = stripped.find(" ")
+        if first_space >= 0:
+            context = stripped[first_space + 1 :]
+    return context
+
+
+def fragment_context_after(text: str, index: int, max_chars: int = 48) -> str:
+    context = text[index : index + max_chars]
+    if len(context) == max_chars:
+        last_space = context.rstrip().rfind(" ")
+        if last_space >= 0:
+            context = context[:last_space]
+    return context
+
+
+def normalize_text_fragment_part(value: str) -> str:
+    return " ".join(value.split())
 
 
 ROBOTS_TXT = """User-agent: *
@@ -860,6 +954,15 @@ APP_HTML = """<!doctype html>
     .hit:first-child {
       border-top: 0;
       padding-top: 0;
+    }
+    .hit-link {
+      display: block;
+      color: inherit;
+      text-decoration: none;
+    }
+    .hit-link:hover .snippet,
+    .hit-link:focus .snippet {
+      color: var(--accent-strong);
     }
     .hit-label {
       margin-bottom: 3px;
@@ -1364,19 +1467,20 @@ APP_HTML = """<!doctype html>
           <span>${hitCount.toLocaleString()} hit${hitCount === 1 ? "" : "s"}</span>
         </div>
         <div class="hit-list">${hits.map(renderHit).join("")}</div>
-        <div class="actions">
-          ${privateFulltext && group.local_url ? `<a href="${escapeAttribute(group.local_url)}">Open local text</a>` : ""}
-          <a href="${escapeAttribute(group.source_url)}" target="_blank" rel="noopener noreferrer">Open source</a>
-        </div>
+        ${privateFulltext && group.local_url ? `<div class="actions"><a href="${escapeAttribute(group.local_url)}">Open local text</a></div>` : ""}
       </article>`;
     }
 
     function renderHit(hit, index) {
       const label = `Hit ${Number(index + 1).toLocaleString()}`;
-      return `<div class="hit">
+      const sourceUrl = hit.highlight_url || hit.source_url || "";
+      const content = `
         <div class="hit-label">${label}</div>
-        <p class="snippet">${hit.snippet_html || escapeHtml(hit.snippet || "")}</p>
-      </div>`;
+        <p class="snippet">${hit.snippet_html || escapeHtml(hit.snippet || "")}</p>`;
+      if (!sourceUrl) return `<div class="hit">${content}</div>`;
+      return `<a class="hit hit-link" href="${escapeAttribute(sourceUrl)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeAttribute(`Open highlighted source for ${label}`)}">
+        ${content}
+      </a>`;
     }
 
     function renderTocRow(item) {

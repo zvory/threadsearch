@@ -14,8 +14,10 @@ from planquest.web import (
     bounded_query,
     clamp,
     health_payload,
+    highlighted_source_url,
     html_csp,
     index_stats,
+    text_fragment_directive,
     thread_id_from_reader_url,
     thread_title_from_reader_url,
 )
@@ -151,6 +153,22 @@ def test_thread_metadata_is_derived_from_reader_url() -> None:
     assert thread_title_from_reader_url(mnkh_reader_url) == "Attempting to Fulfill the Plan MNKh Edition"
 
 
+def test_text_fragment_directive_targets_first_marked_span_with_context() -> None:
+    snippet = "earlier omitted ... before the \x01Cuba\x02 mention after it ... later omitted"
+
+    assert text_fragment_directive(snippet) == "text=before%20the-,Cuba,-mention%20after%20it"
+
+
+def test_highlighted_source_url_preserves_post_anchor() -> None:
+    source_url = "https://forums.sufficientvelocity.com/threads/example.1/#post-123"
+    snippet = "before the \x01Cuba\x02 mention after it"
+
+    assert (
+        highlighted_source_url(source_url, snippet)
+        == "https://forums.sufficientvelocity.com/threads/example.1/#post-123:~:text=before%20the-,Cuba,-mention%20after%20it"
+    )
+
+
 def test_health_payload_rejects_missing_or_invalid_database(tmp_path) -> None:
     missing = health_payload(tmp_path / "missing.sqlite")
     invalid_db = tmp_path / "invalid.sqlite"
@@ -191,6 +209,8 @@ def test_app_html_exposes_contents_tab_without_fulltext_route() -> None:
     assert "Search thread text" in APP_HTML
     assert "renderThreadmarkGroup" in APP_HTML
     assert "renderHit" in APP_HTML
+    assert "hit.highlight_url" in APP_HTML
+    assert "hit-link" in APP_HTML
     assert "payload.threadmarks" in APP_HTML
     assert "/api/search" in APP_HTML
     assert "/api/compare" not in APP_HTML
@@ -318,6 +338,11 @@ def test_search_endpoint_reports_prefix_fallback(tmp_path) -> None:
         assert payload["results"][0]["match_kind"] == "prefix-variants"
         assert payload["threadmarks"][0]["hit_count"] == 1
         assert payload["threadmarks"][0]["hits"][0]["snippet_html"]
+        assert payload["results"][0]["highlight_url"].startswith(
+            "https://forums.sufficientvelocity.com/threads/example.1/#post-1:~:text="
+        )
+        assert "Cuban" in payload["results"][0]["highlight_url"]
+        assert payload["threadmarks"][0]["hits"][0]["highlight_url"] == payload["results"][0]["highlight_url"]
     finally:
         server.shutdown()
         server.server_close()
