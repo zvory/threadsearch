@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import sqlite3
 import time
+import unicodedata
 from collections import defaultdict, deque
 from threading import Lock
 from typing import Callable, Deque
@@ -560,9 +561,8 @@ def highlighted_source_url(source_url: str, snippet: str) -> str:
     if not directive:
         return source_url
     parsed = urlsplit(source_url)
-    base_fragment = parsed.fragment.split(":~:", 1)[0]
-    fragment = f"{base_fragment}:~:{directive}" if base_fragment else f":~:{directive}"
-    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, parsed.query, fragment))
+    # XenForo also scrolls post anchors, which can override a successful text-fragment scroll.
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, parsed.query, f":~:{directive}"))
 
 
 def text_fragment_directive(snippet: str) -> str:
@@ -583,6 +583,7 @@ def text_fragment_directive(snippet: str) -> str:
     text, target_start, target_end = first_marked_span(segment)
     if target_start < 0 or target_end <= target_start:
         return ""
+    target_start, target_end = expand_text_fragment_target(text, target_start, target_end)
 
     target = normalize_text_fragment_part(text[target_start:target_end])
     if not target:
@@ -601,6 +602,36 @@ def text_fragment_directive(snippet: str) -> str:
 def quote_text_fragment_part(value: str) -> str:
     # Text-fragment syntax uses ASCII dashes as delimiters, so quote them too.
     return quote(value, safe="").replace("-", "%2D")
+
+
+APOSTROPHE_WORD_JOINERS = {"'", "\u2019", "\u02bc"}
+
+
+def expand_text_fragment_target(text: str, start: int, end: int) -> tuple[int, int]:
+    while start > 0 and is_text_fragment_word_char(text[start - 1]):
+        start -= 1
+    while end < len(text) and is_text_fragment_word_char(text[end]):
+        end += 1
+
+    if start > 1 and text[start - 1] in APOSTROPHE_WORD_JOINERS and is_text_fragment_word_char(text[start - 2]):
+        start -= 1
+        while start > 0 and is_text_fragment_word_char(text[start - 1]):
+            start -= 1
+
+    if (
+        end + 1 < len(text)
+        and text[end] in APOSTROPHE_WORD_JOINERS
+        and is_text_fragment_word_char(text[end + 1])
+    ):
+        end += 1
+        while end < len(text) and is_text_fragment_word_char(text[end]):
+            end += 1
+
+    return start, end
+
+
+def is_text_fragment_word_char(char: str) -> bool:
+    return char.isalnum() or unicodedata.category(char).startswith("M")
 
 
 def first_marked_span(value: str) -> tuple[str, int, int]:

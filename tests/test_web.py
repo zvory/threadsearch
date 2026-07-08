@@ -165,13 +165,28 @@ def test_text_fragment_directive_escapes_ascii_dashes() -> None:
     assert text_fragment_directive(snippet) == "text=pre%2Dwar%20Nikolai-,Voznesensky"
 
 
-def test_highlighted_source_url_preserves_post_anchor() -> None:
+def test_text_fragment_directive_expands_possessive_target_to_word_boundary() -> None:
+    snippet = "Industry 3 Dice (-2 Dice while no Minister, \x01Voz\x02's experience prevents -20 dice malus) ["
+
+    assert (
+        text_fragment_directive(snippet)
+        == "text=Industry%203%20Dice%20%28%2D2%20Dice%20while%20no%20Minister%2C-,Voz%27s"
+    )
+
+
+def test_text_fragment_directive_expands_typographic_possessive_target() -> None:
+    snippet = "before Nikolai \x01Voz\x02\u2019s plan after"
+
+    assert text_fragment_directive(snippet) == "text=before%20Nikolai-,Voz%E2%80%99s"
+
+
+def test_highlighted_source_url_uses_text_fragment_without_post_anchor() -> None:
     source_url = "https://forums.sufficientvelocity.com/threads/example.1/#post-123"
     snippet = "before the \x01Cuba\x02 mention after it"
 
     assert (
         highlighted_source_url(source_url, snippet)
-        == "https://forums.sufficientvelocity.com/threads/example.1/#post-123:~:text=before%20the-,Cuba"
+        == "https://forums.sufficientvelocity.com/threads/example.1/#:~:text=before%20the-,Cuba"
     )
 
 
@@ -345,7 +360,7 @@ def test_search_endpoint_reports_prefix_fallback(tmp_path) -> None:
         assert payload["threadmarks"][0]["hit_count"] == 1
         assert payload["threadmarks"][0]["hits"][0]["snippet_html"]
         assert payload["results"][0]["highlight_url"].startswith(
-            "https://forums.sufficientvelocity.com/threads/example.1/#post-1:~:text="
+            "https://forums.sufficientvelocity.com/threads/example.1/#:~:text="
         )
         assert "Cuban" in payload["results"][0]["highlight_url"]
         assert payload["threadmarks"][0]["hits"][0]["highlight_url"] == payload["results"][0]["highlight_url"]
