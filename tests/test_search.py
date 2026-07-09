@@ -150,6 +150,66 @@ def test_search_prefix_variants_include_exact_and_prefix_hits(tmp_path: Path) ->
     assert totals.match_query == '"Cuba"*'
 
 
+def test_search_counts_body_hits_not_repeated_title_matches(tmp_path: Path) -> None:
+    text = (
+        "Nikolai Voznesensky appears in this visible body chunk."
+        "\n\n"
+        + ("Industrial planning details continue without the queried name. " * 120)
+    )
+    db = build_db(
+        tmp_path,
+        [
+            Threadmark(
+                order=1,
+                category_id=1,
+                category_name="Threadmarks",
+                threadmark_id="1",
+                post_id="2001",
+                title="Turn 60.2 The Voznesensky Ministry",
+                author="Blackstar",
+                published_at="2020-01-01T00:00:00-0500",
+                source_url="https://forums.sufficientvelocity.com/threads/example.1/#post-2001",
+                reader_url="https://forums.sufficientvelocity.com/threads/example.1/reader/",
+                text=text,
+                word_count=len(text.split()),
+            )
+        ],
+    )
+
+    results = search_db(db, "vozne", limit=10, prefix_variants=True, sort="timeline")
+    totals = search_totals_db(db, "vozne", prefix_variants=True)
+
+    assert [result.chunk_index for result in results] == [1]
+    assert "\x01Voznesensky\x02" in results[0].snippet
+    assert totals.total_threadmarks == 1
+    assert totals.total_chunks == 1
+
+
+def test_search_ignores_title_only_matches(tmp_path: Path) -> None:
+    db = build_db(
+        tmp_path,
+        [
+            Threadmark(
+                order=1,
+                category_id=1,
+                category_name="Threadmarks",
+                threadmark_id="1",
+                post_id="2001",
+                title="Turn 60.2 The Voznesensky Ministry",
+                author="Blackstar",
+                published_at="2020-01-01T00:00:00-0500",
+                source_url="https://forums.sufficientvelocity.com/threads/example.1/#post-2001",
+                reader_url="https://forums.sufficientvelocity.com/threads/example.1/reader/",
+                text="Industrial planning details continue without the queried name.",
+                word_count=7,
+            )
+        ],
+    )
+
+    assert search_db(db, "vozne", prefix_variants=True) == []
+    assert search_totals_db(db, "vozne", prefix_variants=True).total_chunks == 0
+
+
 def test_threadmark_detail_returns_full_body(tmp_path: Path) -> None:
     db = build_db(tmp_path, [record(1, "Cuba appears here with full local text.")])
 

@@ -455,6 +455,62 @@ def test_search_endpoint_groups_all_hits_by_threadmark(tmp_path) -> None:
         thread.join(timeout=5)
 
 
+def test_search_endpoint_counts_visible_body_hits_not_repeated_title_matches(tmp_path) -> None:
+    jsonl = tmp_path / "records.jsonl"
+    db = tmp_path / "records.sqlite"
+    text = (
+        "Nikolai Voznesensky appears in this visible body chunk."
+        "\n\n"
+        + ("Industrial planning details continue without the queried name. " * 120)
+    )
+    write_jsonl(
+        [
+            Threadmark(
+                order=1,
+                category_id=1,
+                category_name="Threadmarks",
+                threadmark_id="1",
+                post_id="1",
+                title="Turn 60.2 The Voznesensky Ministry",
+                author="Blackstar",
+                published_at=None,
+                source_url="https://forums.sufficientvelocity.com/threads/example.1/#post-1",
+                reader_url="https://forums.sufficientvelocity.com/threads/example.1/reader/",
+                text=text,
+                word_count=len(text.split()),
+            )
+        ],
+        jsonl,
+    )
+    build_index(jsonl, db)
+
+    class Handler(SearchHandler):
+        database_path = db
+        rate_limiter = None
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        conn = HTTPConnection("127.0.0.1", server.server_port, timeout=5)
+        conn.request("GET", "/api/search?q=vozne")
+        response = conn.getresponse()
+        payload = json.loads(response.read().decode("utf-8"))
+
+        assert response.status == 200
+        assert payload["result_count"] == 1
+        assert payload["hit_count"] == 1
+        assert payload["total_threadmarks"] == 1
+        assert payload["total_chunks"] == 1
+        assert payload["threadmarks"][0]["hit_count"] == 1
+        assert [hit["chunk_index"] for hit in payload["threadmarks"][0]["hits"]] == [1]
+        assert "<mark>Voznesensky</mark>" in payload["threadmarks"][0]["hits"][0]["snippet_html"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
 def test_search_endpoint_always_includes_word_variants(tmp_path) -> None:
     jsonl = tmp_path / "records.jsonl"
     db = tmp_path / "records.sqlite"

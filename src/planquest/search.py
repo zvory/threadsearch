@@ -302,7 +302,7 @@ def search_where(
     order_max: int | None = None,
 ) -> tuple[str, tuple[Any, ...]]:
     clauses = ["chunks_fts MATCH ?"]
-    params: list[Any] = [match_query]
+    params: list[Any] = [f"body:({match_query})"]
     if order_min is not None:
         clauses.append("CAST(chunks_fts.threadmark_order AS INTEGER) >= ?")
         params.append(order_min)
