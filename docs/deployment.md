@@ -128,6 +128,11 @@ The app bundle includes `.github/workflows/ci.yml`, which runs the public-safe t
 
 The production Docker image uses `dist/thread-search-public/`, which contains the private server-side SQLite artifact and is intentionally ignored by git. Because CI does not have that artifact by default, the reliable deployment path for this repository is a local deploy from the checkout that owns the private artifact.
 
+Fly runs at most one application Machine. The Machine stops when idle, may scale down to zero, and
+cold-starts on the next HTTP request. Availability gaps during cold starts are intentional for this
+low-traffic service; keep `auto_stop_machines = "stop"`, `auto_start_machines = true`, and
+`min_machines_running = 0` aligned in `fly.toml`.
+
 From a clean deployment checkout:
 
 ```sh

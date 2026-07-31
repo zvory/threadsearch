@@ -43,6 +43,14 @@ def test_dockerfile_requires_launch_and_artifact_manifest() -> None:
     assert "THREAD_SEARCH_REMOVAL_REQUEST_URL" in dockerfile
 
 
+def test_fly_deployment_stops_when_idle_and_cold_starts_on_demand() -> None:
+    fly_config = (ROOT / "fly.toml").read_text(encoding="utf-8")
+
+    assert 'auto_stop_machines = "stop"' in fly_config
+    assert "auto_start_machines = true" in fly_config
+    assert "min_machines_running = 0" in fly_config
+
+
 def test_deployment_docs_keep_direct_docker_bound_to_loopback() -> None:
     deployment = (ROOT / "docs" / "deployment.md").read_text(encoding="utf-8")
 
