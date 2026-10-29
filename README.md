@@ -52,6 +52,10 @@ Scouting performs one cached request to the reader page and reports the category
 
 ## Scrape Main Threadmarks
 
+`build` and `scrape` update incrementally by default (including with `--refresh`). They recheck the first reader page for pagination, refresh the last cached reader page to catch new chapters on a partially filled page, and download missing/new pages. Earlier cached chapters are reused. The forum serves whole reader pages, so these checks may include some existing chapters; they do not crawl the rest of the site.
+
+Use `--full-refresh` on `build` or `scrape` only when you deliberately want to re-download all reader pages, such as to pick up edits to older chapters. `--offline` stays strictly cache-only. Start with an existing cache; the first run with an empty cache must fetch all pages.
+
 The default delay is intentionally slow and every page is cached. A full main-threadmark scrape is 27 reader pages at the time of scouting.
 
 Plan the crawl first:

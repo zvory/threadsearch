@@ -53,3 +53,76 @@ def test_parse_reader_page_filters_to_main_category() -> None:
     assert records[0].threadmark_id == "456"
     assert records[0].author == "Blackstar"
     assert "Cuba remains non-communist" in records[0].text
+
+
+def test_incremental_refresh_fetches_discovery_tail_and_new_pages(tmp_path) -> None:
+    from planquest.fetch import PoliteFetcher
+    from planquest.scrape import reader_page_url, scrape_reader_with_stats
+
+    root = "https://example.invalid/threads/example.1/reader/"
+    calls = []
+    pages = 3
+    tail_extra = False
+
+    def page_html(url):
+        calls.append(url)
+        page = next(n for n in range(1, pages + 1) if reader_page_url(root, n) == url)
+        body = HTML.replace("post-123", f"post-{page}").replace("Turn 1", f"Turn {page}")
+        body = body.replace("/reader/page-9", f"/reader/page-{pages}")
+        if tail_extra and page == 3:
+            body += body.replace("post-3", "post-30")
+        return body
+
+    fetcher = PoliteFetcher(tmp_path / "cache", "test-agent", delay_seconds=0)
+    fetcher._assert_allowed = lambda url: None
+    fetcher._http_get_with_retries = page_html
+    out = tmp_path / "records.jsonl"
+
+    records, stats = scrape_reader_with_stats(fetcher, root, out)
+    assert len(records) == 3
+    assert stats.network_pages == 3
+
+    calls.clear()
+    pages = 4
+    tail_extra = True
+    records, stats = scrape_reader_with_stats(fetcher, root, out)
+    assert calls == [root, reader_page_url(root, 3), reader_page_url(root, 4)]
+    assert [r.post_id for r in records] == ["1", "2", "3", "30", "4"]
+    assert [r.order for r in records] == [1, 2, 3, 4, 5]
+    assert stats.network_pages == 3
+    assert stats.cached_pages == 1
+
+    calls.clear()
+    scrape_reader_with_stats(fetcher, root, out)
+    assert calls == [root, reader_page_url(root, 4)]
+
+    calls.clear()
+    fetcher.offline = True
+    records, stats = scrape_reader_with_stats(fetcher, root, out)
+    assert calls == []
+    assert stats.cached_pages == 4
+    assert len(records) == 5
+
+    fetcher.offline = False
+    fetcher.refresh = True
+    scrape_reader_with_stats(fetcher, root, out)
+    assert calls == [reader_page_url(root, n) for n in range(1, 5)]
+
+
+def test_incremental_failure_keeps_previous_corpus(tmp_path) -> None:
+    import pytest
+    from planquest.fetch import PoliteFetcher
+    from planquest.scrape import scrape_reader_with_stats
+
+    out = tmp_path / "records.jsonl"
+    out.write_text("previous corpus")
+    fetcher = PoliteFetcher(tmp_path / "cache", "test-agent", delay_seconds=0)
+    fetcher._assert_allowed = lambda url: None
+
+    def fail(url):
+        raise OSError("network unavailable")
+
+    fetcher._http_get_with_retries = fail
+    with pytest.raises(OSError, match="network unavailable"):
+        scrape_reader_with_stats(fetcher, "https://example.invalid/threads/example.1/reader/", out)
+    assert out.read_text() == "previous corpus"

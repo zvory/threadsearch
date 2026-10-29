@@ -36,7 +36,7 @@ Defaults:
 
 - One request at a time.
 - `8` seconds between network requests from the documented full-crawl command.
-- Cache-first. Re-running a command reads cached pages unless `--refresh` is passed.
+- `build` and `scrape` are incremental by default, including with `--refresh`: recheck the first reader page and the last cached page, fetch missing/new pages, and reuse earlier cached pages. Use `--full-refresh` to fetch every reader page again. Other fetch commands retain cache-first behavior unless `--refresh` is passed.
 - No login, account, search, or attachment endpoints.
 - `prefetch --limit 1` fetches at most one uncached reader page per invocation, after any required cached planning data is available.
 - `--offline` is a hard cache-only mode for commands that use the fetcher; missing cached pages fail instead of falling back to the network.

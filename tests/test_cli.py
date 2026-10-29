@@ -361,3 +361,14 @@ def concrete_permission_detail(item: str) -> str:
         "Decision date": "2026-07-08.",
     }
     return details[item]
+
+
+def test_build_and_scrape_refresh_incrementally_unless_full_refresh_requested(tmp_path) -> None:
+    for command in ("build", "scrape"):
+        for flags, full in (([], False), (["--refresh"], False), (["--full-refresh"], True)):
+            args = cli.build_parser().parse_args([command, "--cache-dir", str(tmp_path), *flags])
+            assert cli.make_fetcher(args).refresh is full
+        args = cli.build_parser().parse_args([command, "--offline"])
+        assert cli.make_fetcher(args).offline is True
+    args = cli.build_parser().parse_args(["scout", "--refresh"])
+    assert cli.make_fetcher(args).refresh is True

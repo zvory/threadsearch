@@ -151,6 +151,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     scrape = subparsers.add_parser("scrape", help="Download and extract reader threadmarks.")
     add_fetch_args(scrape)
+    scrape.add_argument("--full-refresh", action="store_true", help="Re-download every reader page, including existing chapters.")
     scrape.add_argument("url", nargs="?", default=TARGET_READER_URL)
     scrape.add_argument("--out", type=Path, default=DEFAULT_JSONL)
     scrape.add_argument("--category", type=int, default=MAIN_THREADMARK_CATEGORY_ID)
@@ -161,6 +162,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     build = subparsers.add_parser("build", help="Scrape, index, and validate in one controlled run.")
     add_fetch_args(build)
+    build.add_argument("--full-refresh", action="store_true", help="Re-download every reader page, including existing chapters.")
     build.add_argument("url", nargs="?", default=TARGET_READER_URL)
     build.add_argument("--out", type=Path, default=DEFAULT_JSONL)
     build.add_argument("--db", type=Path, default=DEFAULT_DB)
@@ -501,7 +503,7 @@ def add_fetch_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--delay", type=float, default=8.0, help="Seconds between network requests.")
     parser.add_argument("--retries", type=int, default=2, help="Retries for transient 429/5xx/network failures.")
     parser.add_argument("--retry-delay", type=float, default=30.0, help="Base seconds to wait between retries.")
-    parser.add_argument("--refresh", action="store_true", help="Ignore cached pages and fetch again.")
+    parser.add_argument("--refresh", action="store_true", help="Recheck the source; build/scrape refresh incrementally. Use --full-refresh to re-download all chapters.")
     parser.add_argument("--offline", action="store_true", help="Use cached robots/page files only; never make network requests.")
     parser.add_argument("--user-agent", default=default_user_agent())
 
@@ -511,7 +513,7 @@ def make_fetcher(args: argparse.Namespace) -> PoliteFetcher:
         cache_dir=args.cache_dir,
         user_agent=args.user_agent,
         delay_seconds=args.delay,
-        refresh=args.refresh,
+        refresh=getattr(args, "full_refresh", args.refresh),
         retries=args.retries,
         retry_delay_seconds=args.retry_delay,
         offline=args.offline,

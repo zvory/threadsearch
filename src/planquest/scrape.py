@@ -237,13 +237,23 @@ def scrape_reader_with_stats(
     progress: ProgressCallback | None = None,
 ) -> tuple[list[Threadmark], ScrapeStats]:
     reader_root = normalize_reader_root(url, category_id=category_id)
-    first = fetcher.fetch_text(reader_root)
+    # Recheck pagination, then refresh only the last cached page (which may
+    # have gained chapters). Earlier pages remain cache-only unless explicitly
+    # doing a full refresh. Offline runs never revalidate pages.
+    incremental = not fetcher.offline and not fetcher.refresh
+    first = fetcher.fetch_text(reader_root, refresh=incremental)
     plan = plan_reader_crawl(
         first.text,
         reader_root=reader_root,
         category_id=category_id,
         category_name=category_name,
         max_pages=max_pages,
+    )
+
+    last_cached_page = max(
+        (page for page, page_url in enumerate(plan.page_urls, start=1)
+         if fetcher.is_cached(page_url)),
+        default=1,
     )
 
     records: list[Threadmark] = []
@@ -255,7 +265,7 @@ def scrape_reader_with_stats(
         if page == 1:
             fetched = first
         else:
-            fetched = fetcher.fetch_text(page_url)
+            fetched = fetcher.fetch_text(page_url, refresh=incremental and page == last_cached_page)
             if fetched.from_cache:
                 cached_pages += 1
             else:

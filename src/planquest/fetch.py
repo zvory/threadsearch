@@ -57,10 +57,10 @@ class PoliteFetcher:
         self._robots: Dict[str, RobotFileParser] = {}
         self._last_request_at: Dict[str, float] = {}
 
-    def fetch_text(self, url: str) -> CachedFetch:
+    def fetch_text(self, url: str, *, refresh: bool = False) -> CachedFetch:
         self._assert_allowed(url)
         path = self._cache_path(url)
-        if path.exists() and not self.refresh:
+        if path.exists() and not (self.refresh or refresh):
             return CachedFetch(url=url, text=path.read_text(encoding="utf-8"), from_cache=True, path=path)
         if self.offline:
             raise CacheMiss(f"cached page not found: {url}")
