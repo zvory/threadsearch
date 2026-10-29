@@ -155,3 +155,24 @@ def test_ci_workflow_runs_public_safe_tests_only() -> None:
     assert "pytest -q" in workflow
     assert "data/" not in workflow
     assert "dist/" not in workflow
+
+
+def test_docker_startup_reads_current_count_from_mounted_manifest(tmp_path) -> None:
+    import json
+    import os
+    import subprocess
+    import sys
+
+    cmd_line = next(line for line in (ROOT / "Dockerfile").read_text().splitlines() if line.startswith("CMD "))
+    command = json.loads(cmd_line[4:])
+    (tmp_path / "python").symlink_to(sys.executable)
+    launcher = tmp_path / "thread-search"
+    launcher.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+    launcher.chmod(0o755)
+    manifest = tmp_path / "manifest.json"
+    env = dict(os.environ, PATH=f"{tmp_path}:{os.environ['PATH']}", THREAD_SEARCH_ARTIFACT_MANIFEST=str(manifest))
+    for count in (269, 276):
+        manifest.write_text(json.dumps({"validation_contract": {"expected_threadmarks": count}}))
+        result = subprocess.run(command, env=env, text=True, capture_output=True, check=True)
+        args = result.stdout.splitlines()
+        assert args[args.index("--expected-threadmarks") + 1] == str(count)

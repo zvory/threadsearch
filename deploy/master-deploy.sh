@@ -148,9 +148,12 @@ log "installing package and dev dependencies"
 log "running public-safe test suite"
 "$PYTHON_BIN" -m pytest -q
 
+EXPECTED_THREADMARKS="$("$PYTHON_BIN" -c 'import json, sys; n = json.load(open(sys.argv[1]))["validation_contract"]["expected_threadmarks"]; assert type(n) is int and n > 0; print(n)' "$THREAD_SEARCH_DEPLOY_ARTIFACT_DIR/manifest.json")"
+
 log "refreshing deployment bundles from $THREAD_SEARCH_DEPLOY_ARTIFACT_DIR"
 "$PYTHON_BIN" -m planquest.cli deploy-bundle \
   --artifact-dir "$THREAD_SEARCH_DEPLOY_ARTIFACT_DIR" \
+  --expected-threadmarks "$EXPECTED_THREADMARKS" \
   --out-dir "$THREAD_SEARCH_DEPLOY_BUNDLE_DIR"
 
 log "verifying deployment bundles"

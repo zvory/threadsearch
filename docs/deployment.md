@@ -334,3 +334,5 @@ After DNS and HTTPS are live through nginx, run both public checks:
 ```
 
 An nginx starter config is available at `deploy/nginx-thread-search.conf.example`. It keeps nginx as the only internet-facing process, proxies to `127.0.0.1:8765`, applies a host-level `/api/` rate limit, repeats noindex/security headers, and denies obvious private artifact paths before proxying.
+
+Corpus refreshes must export an artifact with `--expected-threadmarks` matching the current main threadmark count. The Docker image and master deploy wrapper read that count from the artifact manifest for launch checks and bundle validation, so a growing thread does not require changing the historical CLI defaults.
